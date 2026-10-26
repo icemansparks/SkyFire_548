@@ -1714,6 +1714,10 @@ void World::SetInitialWorldSettings()
 
     CharacterDatabaseCleaner::CleanDatabase();
 
+    // needs the SpellInfo store and the SkillLineAbility map (LoadSpellInfoStore and LoadSkillLineAbilityMap above)
+    SF_LOG_INFO("server.loading", "Moving account-wide spells to their accounts...");
+    Player::MoveAccountWideSpellsToAccounts();
+
     SF_LOG_INFO("server.loading", "Loading the max pet number...");
     sObjectMgr->LoadPetNumber();
 

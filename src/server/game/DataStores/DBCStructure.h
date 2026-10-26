@@ -2472,7 +2472,7 @@ struct SpellMiscEntry
     uint32    AttributesEx7;                                // 10       m_attributesExG
     uint32    AttributesEx8;                                // 11       m_attributesExH
     uint32    AttributesEx9;                                // 12       m_attributesExI
-    //uint32    AttributesEx10;                             // 13       m_attributesExJ
+    uint32    AttributesEx10;                               // 13       m_attributesExJ
     //uint32    AttributesEx11;                             // 14       m_attributesExK
     //uint32    AttributesEx12;                             // 15       m_attributesExL
     //uint32    AttributesEx13;                             // 16       m_attributesExM

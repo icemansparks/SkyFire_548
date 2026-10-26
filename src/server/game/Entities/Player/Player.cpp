@@ -3601,8 +3601,8 @@ void Player::SendInitialSpells()
 
 void DeleteSpellFromAllPlayers(uint32 spellId)
 {
-    CharacterDatabaseStatements stmts[2] = { CHAR_DEL_INVALID_SPELL_SPELLS, CHAR_DEL_INVALID_SPELL_TALENTS };
-    for (uint8 i = 0; i < 2; i++)
+    CharacterDatabaseStatements stmts[3] = { CHAR_DEL_INVALID_SPELL_SPELLS, CHAR_DEL_INVALID_SPELL_TALENTS, CHAR_DEL_INVALID_ACCOUNT_SPELL };
+    for (uint8 i = 0; i < 3; i++)
     {
         PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(stmts[i]);
 
@@ -15541,19 +15541,22 @@ void Player::_SaveSpells(SQLTransaction& trans)
 
     for (PlayerSpellMap::iterator itr = m_spells.begin(); itr != m_spells.end();)
     {
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(itr->first);
+        bool const accountWide = spellInfo && spellInfo->IsAccountWide();
+
         if (itr->second->state == PLAYERSPELL_REMOVED || itr->second->state == PLAYERSPELL_CHANGED)
         {
-            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_SPELL_BY_SPELL);
+            stmt = CharacterDatabase.GetPreparedStatement(accountWide ? CHAR_DEL_ACCOUNT_SPELL_BY_SPELL : CHAR_DEL_CHAR_SPELL_BY_SPELL);
             stmt->setUInt32(0, itr->first);
-            stmt->setUInt32(1, GetGUIDLow());
+            stmt->setUInt32(1, accountWide ? GetSession()->GetAccountId() : GetGUIDLow());
             trans->Append(stmt);
         }
 
         // add only changed/new not dependent spells
         if (!itr->second->dependent && (itr->second->state == PLAYERSPELL_NEW || itr->second->state == PLAYERSPELL_CHANGED))
         {
-            stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_SPELL);
-            stmt->setUInt32(0, GetGUIDLow());
+            stmt = CharacterDatabase.GetPreparedStatement(accountWide ? CHAR_INS_ACCOUNT_SPELL : CHAR_INS_CHAR_SPELL);
+            stmt->setUInt32(0, accountWide ? GetSession()->GetAccountId() : GetGUIDLow());
             stmt->setUInt32(1, itr->first);
             stmt->setBool(2, itr->second->active);
             stmt->setBool(3, itr->second->disabled);
@@ -15571,6 +15574,52 @@ void Player::_SaveSpells(SQLTransaction& trans)
             ++itr;
         }
     }
+}
+
+// Account-wide spells (mounts, companions, battle pet unlock) live in `account_spell`. Rows of them
+// still in `character_spell` (saved before the table existed, or written by boosts and faction
+// changes) move to the character's account, so every character of the account knows them.
+// When characters of one account disagree, the spell ends up active and enabled if it is on any of them.
+void Player::MoveAccountWideSpellsToAccounts()
+{
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_SPELL_WITH_ACCOUNT);
+    PreparedQueryResult result = CharacterDatabase.Query(stmt);
+    uint32 count = 0;
+    if (!result)
+    {
+        SF_LOG_INFO("server.loading", ">> Moved 0 account-wide spells from `character_spell` to `account_spell`");
+        return;
+    }
+
+    SQLTransaction trans = CharacterDatabase.BeginTransaction();
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 spellId = fields[2].GetUInt32();
+
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+        if (!spellInfo || !spellInfo->IsAccountWide())
+            continue;
+
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_ACCOUNT_SPELL_MERGE);
+        stmt->setUInt32(0, fields[1].GetUInt32());
+        stmt->setUInt32(1, spellId);
+        stmt->setBool(2, fields[3].GetBool());
+        stmt->setBool(3, fields[4].GetBool());
+        trans->Append(stmt);
+
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_SPELL_BY_SPELL);
+        stmt->setUInt32(0, spellId);
+        stmt->setUInt32(1, fields[0].GetUInt32());
+        trans->Append(stmt);
+
+        ++count;
+    } while (result->NextRow());
+
+    if (count)
+        CharacterDatabase.DirectCommitTransaction(trans);
+
+    SF_LOG_INFO("server.loading", ">> Moved %u account-wide spells from `character_spell` to `account_spell`", count);
 }
 
 // save player stats -- only for external usage
@@ -19446,7 +19495,14 @@ void Player::resetSpells(bool myClassOnly)
     }
     else
         for (PlayerSpellMap::const_iterator iter = smap.begin(); iter != smap.end(); ++iter)
+        {
+            // mounts and companions belong to the whole account, a reset of one character keeps them
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(iter->first);
+            if (spellInfo && spellInfo->IsAccountWide())
+                continue;
+
             removeSpell(iter->first, false, false);           // only iter->first can be accessed, object by iter->second can be deleted already
+        }
 
     learnDefaultSpells();
     learnQuestRewardedSpells();

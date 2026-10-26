@@ -693,7 +693,7 @@ enum SpellAttr9
     //SPELL_ATTR9_UNK30                            = 0x40000000, // 30 - (5.4.8 SPELL_ATTR9_NO_MOVEMENT_RADIUS_BONUS)
     //SPELL_ATTR9_UNK31                            = 0x80000000  // 31 - (5.4.8 SPELL_ATTR9_CHANNEL_PERSIST_ON_PET_FOLLOW)
 };
-/*
+
 enum SpellAttr10
 {
     SPELL_ATTR10_UNK0                             = 0x00000001, //  0
@@ -725,11 +725,11 @@ enum SpellAttr10
     SPELL_ATTR10_UNK26                            = 0x04000000, // 26
     SPELL_ATTR10_UNK27                            = 0x08000000, // 27
     SPELL_ATTR10_UNK28                            = 0x10000000, // 28
-    SPELL_ATTR10_UNK29                            = 0x20000000, // 29
+    SPELL_ATTR10_MOUNT_CHARACTER                  = 0x20000000, // 29 mount stays with the character, not shared by the account (class and PvP mounts)
     SPELL_ATTR10_UNK30                            = 0x40000000, // 30
     SPELL_ATTR10_UNK31                            = 0x80000000  // 31
 };
-*/
+
 enum Specializations
 {
     SPEC_NONE = 0,

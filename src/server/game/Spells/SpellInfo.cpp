@@ -574,7 +574,7 @@ SpellInfo::SpellInfo(SpellEntry const* spellEntry, SpellEffectEntry const** effe
     AttributesEx7 = spellMisc ? spellMisc->AttributesEx7 : 0;
     AttributesEx8 = spellMisc ? spellMisc->AttributesEx8 : 0;
     AttributesEx9 = spellMisc ? spellMisc->AttributesEx9 : 0;
-    //AttributesEx10 = spellMisc ? spellMisc->AttributesEx10 : 0;
+    AttributesEx10 = spellMisc ? spellMisc->AttributesEx10 : 0;
     //AttributesEx11 = spellMisc ? spellMisc->AttributesEx11 : 0;
     //AttributesEx12 = spellMisc ? spellMisc->AttributesEx12 : 0;
     //AttributesEx13 = spellMisc ? spellMisc->AttributesEx13 : 0;
@@ -876,6 +876,13 @@ bool SpellInfo::IsAbilityOfSkillType(uint32 skillType) const
             return true;
 
     return false;
+}
+
+// Mounts, companions and the battle pet unlock are known by every character of the account
+bool SpellInfo::IsAccountWide() const
+{
+    return (IsAbilityOfSkillType(SKILL_MOUNTS) && !(AttributesEx10 & SPELL_ATTR10_MOUNT_CHARACTER))
+        || IsAbilityOfSkillType(SKILL_COMPANIONS) || Effects[EFFECT_0].Effect == SPELL_EFFECT_BATTLE_PET_UNLOCK;
 }
 
 bool SpellInfo::IsAffectingArea() const

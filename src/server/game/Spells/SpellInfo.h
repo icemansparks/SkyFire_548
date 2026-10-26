@@ -171,7 +171,7 @@ public:
     uint32 AttributesEx7;
     uint32 AttributesEx8;
     uint32 AttributesEx9;
-    //uint32 AttributesEx10;
+    uint32 AttributesEx10;
     //uint32 AttributesEx11;
     //uint32 AttributesEx12;
     //uint32 AttributesEx13;
@@ -295,6 +295,7 @@ public:
     bool IsPrimaryProfessionFirstRank() const;
     bool IsAbilityLearnedWithProfession() const;
     bool IsAbilityOfSkillType(uint32 skillType) const;
+    bool IsAccountWide() const;
 
     bool IsAffectingArea() const;
     bool IsTargetingArea() const;
