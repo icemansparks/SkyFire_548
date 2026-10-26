@@ -5,7 +5,7 @@
 -- same link the riding chain 33388 -> 90265 uses.
 -- Existing characters with both spells keep only Swift Flight Form
 -- active at their next login.
-DELETE FROM `spell_ranks` WHERE `first_spell_id` = 33943;
+DELETE FROM `spell_ranks` WHERE `first_spell_id` IN (33943, 40120) OR `spell_id` IN (33943, 40120);
 INSERT INTO `spell_ranks` (`first_spell_id`, `spell_id`, `spell_rank`) VALUES
 (33943, 33943, 1),
 (33943, 40120, 2);
