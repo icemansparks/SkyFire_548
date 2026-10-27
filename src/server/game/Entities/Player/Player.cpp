@@ -12495,7 +12495,8 @@ bool Player::LoadFromDB(uint32 guid, SQLQueryHolder* holder)
     SetFloatValue(UNIT_FIELD_HOVER_HEIGHT, 1.0f);
 
     // load achievements before anything else to prevent multiple gains for the same achievement/criteria on every loading (as loading does call UpdateAchievementCriteria)
-    m_achievementMgr->LoadFromDB(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACHIEVEMENTS), holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CRITERIA_PROGRESS));
+    m_achievementMgr->LoadFromDB(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACHIEVEMENTS), holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CRITERIA_PROGRESS),
+        holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_ACHIEVEMENTS), holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_CRITERIA_PROGRESS));
 
     uint64 money = fields[8].GetUInt64();
     if (money > MAX_MONEY_AMOUNT)

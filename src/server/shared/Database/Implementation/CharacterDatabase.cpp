@@ -100,6 +100,8 @@ void CharacterDatabaseConnection::DoPrepareStatements()
         "JOIN guild_rank gr ON g.guildid = gr.guildid AND gm.member_rank = gr.rid WHERE gm.guid = ?", CONNECTION_BOTH);
     PrepareStatement(CHAR_SEL_CHARACTER_ACHIEVEMENTS, "SELECT achievement, date FROM character_achievement WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_CRITERIAPROGRESS, "SELECT criteria, counter, date FROM character_achievement_progress WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_ACCOUNT_ACHIEVEMENTS, "SELECT achievement, date FROM account_achievement WHERE account = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_ACCOUNT_CRITERIAPROGRESS, "SELECT criteria, counter, date FROM account_achievement_progress WHERE account = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_EQUIPMENTSETS, "SELECT setguid, setindex, name, iconname, ignore_mask, item0, item1, item2, item3, item4, item5, item6, item7, item8, "
         "item9, item10, item11, item12, item13, item14, item15, item16, item17, item18 FROM character_equipmentsets WHERE guid = ? ORDER BY setindex", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_CHARACTER_BGDATA, "SELECT instanceId, team, joinX, joinY, joinZ, joinO, joinMapId, taxiStart, taxiEnd, mountSpell FROM character_battleground_data WHERE guid = ?", CONNECTION_ASYNC);
@@ -472,8 +474,17 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_DEL_CHAR_ACHIEVEMENT, "DELETE FROM character_achievement WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_ACHIEVEMENT_PROGRESS, "DELETE FROM character_achievement_progress WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_CHAR_ACHIEVEMENT, "INSERT INTO character_achievement (guid, achievement, date) VALUES (?, ?, ?)", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_DEL_CHAR_ACHIEVEMENT_PROGRESS_BY_CRITERIA, "DELETE FROM character_achievement_progress WHERE guid = ? AND criteria = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHAR_ACHIEVEMENT_PROGRESS_BY_CRITERIA, "DELETE FROM character_achievement_progress WHERE guid = ? AND criteria = ?", CONNECTION_BOTH);
     PrepareStatement(CHAR_INS_CHAR_ACHIEVEMENT_PROGRESS, "INSERT INTO character_achievement_progress (guid, criteria, counter, date) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_REP_ACCOUNT_ACHIEVEMENT, "REPLACE INTO account_achievement (account, achievement, date) VALUES (?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_REP_ACCOUNT_ACHIEVEMENT_PROGRESS, "REPLACE INTO account_achievement_progress (account, criteria, counter, date) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHAR_ACHIEVEMENT_WITH_ACCOUNT, "SELECT ca.guid, c.account, ca.achievement, ca.date FROM character_achievement ca JOIN characters c ON c.guid = ca.guid WHERE c.account <> 0", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHAR_CRITERIAPROGRESS_WITH_ACCOUNT, "SELECT cp.guid, c.account, cp.criteria, cp.counter, cp.date FROM character_achievement_progress cp JOIN characters c ON c.guid = cp.guid WHERE c.account <> 0", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_ACCOUNT_ACHIEVEMENT_MERGE, "INSERT INTO account_achievement (account, achievement, date) VALUES (?, ?, ?) "
+        "ON DUPLICATE KEY UPDATE date = LEAST(date, VALUES(date))", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_ACCOUNT_ACHIEVEMENT_PROGRESS_MERGE, "INSERT INTO account_achievement_progress (account, criteria, counter, date) VALUES (?, ?, ?, ?) "
+        "ON DUPLICATE KEY UPDATE date = IF(VALUES(counter) > counter, VALUES(date), date), counter = GREATEST(counter, VALUES(counter))", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_ACCOUNT_ACHIEVEMENT_PROGRESS_IF_NEW, "INSERT IGNORE INTO account_achievement_progress (account, criteria, counter, date) VALUES (?, ?, ?, ?)", CONNECTION_SYNCH);
     PrepareStatement(CHAR_DEL_CHAR_REPUTATION_BY_FACTION, "DELETE FROM character_reputation WHERE guid = ? AND faction = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_CHAR_REPUTATION_BY_FACTION, "INSERT INTO character_reputation (guid, faction, standing, flags) VALUES (?, ?, ? , ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_ITEM_REFUND_INSTANCE, "DELETE FROM item_refund_instance WHERE item_guid = ?", CONNECTION_ASYNC);
@@ -500,7 +511,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_DEL_CHAR_QUESTSTATUS, "DELETE FROM character_queststatus WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_SOCIAL_BY_GUID, "DELETE FROM character_social WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_SOCIAL_BY_FRIEND, "DELETE FROM character_social WHERE friend = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_DEL_CHAR_ACHIEVEMENT_BY_ACHIEVEMENT, "DELETE FROM character_achievement WHERE achievement = ? AND guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHAR_ACHIEVEMENT_BY_ACHIEVEMENT, "DELETE FROM character_achievement WHERE achievement = ? AND guid = ?", CONNECTION_BOTH);
     PrepareStatement(CHAR_UPD_CHAR_ACHIEVEMENT, "UPDATE character_achievement SET achievement = ? where achievement = ? AND guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_UPD_CHAR_INVENTORY_FACTION_CHANGE, "UPDATE item_instance ii, character_inventory ci SET ii.itemEntry = ? WHERE ii.itemEntry = ? AND ci.guid = ? AND ci.item = ii.guid", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_SPELL_BY_SPELL, "DELETE FROM character_spell WHERE spell = ? AND guid = ?", CONNECTION_ASYNC);

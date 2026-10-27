@@ -7,6 +7,8 @@
 #define SF_ACHIEVEMENTMGR_H
 
 #include <map>
+#include <memory>
+#include <mutex>
 #include <string>
 
 #include "Common.h"
@@ -220,6 +222,26 @@ struct CompletedAchievementData
 typedef UNORDERED_MAP<uint32, CriteriaProgress> CriteriaProgressMap;
 typedef UNORDERED_MAP<uint32, CompletedAchievementData> CompletedAchievementMap;
 
+// Account achievements and their criteria progress, held once per account and shared by every
+// online character of it (playerbots can log a second character of the account in).
+struct AccountAchievementData
+{
+    AccountAchievementData() : achievementPoints(0) { }
+
+    CriteriaProgressMap criteriaProgress;
+    CompletedAchievementMap completedAchievements;
+    uint32 achievementPoints;
+    std::recursive_mutex lock;                      // characters of the account can update on different map threads
+};
+
+// Which counters of a criterion SetCriteriaProgress touches
+enum CriteriaStores
+{
+    CRITERIA_STORE_CHARACTER = 1,
+    CRITERIA_STORE_ACCOUNT   = 2,
+    CRITERIA_STORE_ALL       = 3
+};
+
 enum ProgressType
 {
     PROGRESS_SET,
@@ -236,7 +258,7 @@ public:
 
     void Reset();
     static void DeleteFromDB(uint32 lowguid);
-    void LoadFromDB(PreparedQueryResult achievementResult, PreparedQueryResult criteriaResult);
+    void LoadFromDB(PreparedQueryResult achievementResult, PreparedQueryResult criteriaResult, PreparedQueryResult accountAchievementResult = PreparedQueryResult(), PreparedQueryResult accountCriteriaResult = PreparedQueryResult());
     void SaveToDB(SQLTransaction& trans);
     void ResetAchievementCriteria(AchievementCriteriaTypes type, uint64 miscValue1 = 0, uint64 miscValue2 = 0, bool evenIfCriteriaComplete = false);
     void UpdateAchievementCriteria(AchievementCriteriaTypes type, uint64 miscValue1 = 0, uint64 miscValue2 = 0, uint64 miscValue3 = 0, Unit const* unit = NULL, Player* referencePlayer = NULL);
@@ -251,12 +273,19 @@ public:
     void StartTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry, uint32 timeLost = 0);
     void RemoveTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry);   // used for quest and scripted timed achievements
 
-    uint32 GetAchievementPoints() const { return _achievementPoints; }
+    uint32 GetAchievementPoints() const
+    {
+        std::unique_lock<std::recursive_mutex> accountLock = LockAccount();
+        return _achievementPoints + (_account ? _account->achievementPoints : 0);
+    }
 private:
     void SendAchievementEarned(AchievementEntry const* achievement) const;
     void SendCriteriaUpdate(CriteriaEntry const* entry, CriteriaProgress const* progress, uint32 timeElapsed, bool timedCompleted) const;
-    CriteriaProgress* GetCriteriaProgress(CriteriaEntry const* entry);
-    void SetCriteriaProgress(CriteriaEntry const* entry, uint64 changeValue, Player* referencePlayer, ProgressType ptype = PROGRESS_SET);
+    void SendAccountCriteriaUpdate(CriteriaEntry const* entry, CriteriaProgress const* progress, uint32 timeElapsed) const;
+    CriteriaProgress* GetCriteriaProgress(CriteriaEntry const* entry, bool account = false);
+    CriteriaProgress* UpdateCriteriaCounter(CriteriaProgressMap& progressMap, CriteriaEntry const* entry, uint64 changeValue, ProgressType ptype);
+    std::unique_lock<std::recursive_mutex> LockAccount() const { return _account ? std::unique_lock<std::recursive_mutex>(_account->lock) : std::unique_lock<std::recursive_mutex>(); }
+    void SetCriteriaProgress(CriteriaEntry const* entry, uint64 changeValue, Player* referencePlayer, ProgressType ptype = PROGRESS_SET, uint8 stores = CRITERIA_STORE_ALL);
     void RemoveCriteriaProgress(CriteriaEntry const* entry);
     void CompletedCriteriaFor(AchievementEntry const* achievement, Player* referencePlayer);
     bool IsCompletedCriteria(CriteriaEntry const* criteria);
@@ -275,6 +304,7 @@ private:
     typedef std::map<uint32, uint32> TimedAchievementMap;
     TimedAchievementMap m_timedAchievements;      // Criteria id/time left in MS
     uint32 _achievementPoints;
+    std::shared_ptr<AccountAchievementData> _account;   // Player only, set by LoadFromDB
 };
 
 class AchievementGlobalMgr
@@ -384,6 +414,7 @@ public:
     void LoadAchievementCriteriaData();
     void LoadAchievementReferenceList();
     void LoadCompletedAchievements();
+    void MergeCharacterAchievementsIntoAccounts();
     void LoadRewards();
     void LoadRewardLocales();
     AchievementEntry const* GetAchievement(uint32 achievementId) const;

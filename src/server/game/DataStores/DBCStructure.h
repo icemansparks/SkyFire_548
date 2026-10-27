@@ -812,7 +812,7 @@ struct CharStartOutfitEntry
 struct CharTitlesEntry
 {
     //uint32  ID;                                           // 0, title ids, for example in Quest::GetCharTitleId()
-    //uint32      unk1;                                     // 1 flags?
+    uint32  conditionId;                                    // 1        m_condition_ID, 0 on the titles that stay with the earning character
     char* name;                                             // 2        m_name_lang
     //char*       name2;                                    // 3        m_name1_lang
     uint32  bit_index;                                      // 4        m_mask_ID used in PLAYER_FIELD_PLAYER_TITLE and 1<<index in PLAYER__FIELD_KNOWN_TITLES

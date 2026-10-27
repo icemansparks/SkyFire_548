@@ -1751,6 +1751,9 @@ void World::SetInitialWorldSettings()
     SF_LOG_INFO("server.loading", "Loading Completed Achievements...");
     sAchievementMgr->LoadCompletedAchievements();
 
+    SF_LOG_INFO("server.loading", "Merging account achievements of characters into their accounts...");
+    sAchievementMgr->MergeCharacterAchievementsIntoAccounts();
+
     // Delete expired auctions before loading
     SF_LOG_INFO("server.loading", "Deleting expired auctions...");
     sAuctionMgr->DeleteExpiredAuctionsAtStartup();
