@@ -11994,6 +11994,15 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool 
                     if (getClass() != creature->GetCreatureTemplate()->trainer_class && creature->GetCreatureTemplate()->trainer_type == TRAINER_TYPE_CLASS)
                         SF_LOG_ERROR("sql.sql", "GOSSIP_OPTION_TRAINER:: Player %s (GUID: %u) request wrong gossip menu: %u with wrong class: %u at Creature: %s (Entry: %u, Trainer Class: %u)",
                             GetName().c_str(), GetGUIDLow(), menu->GetGossipMenu().GetMenuId(), getClass(), creature->GetName().c_str(), creature->GetEntry(), creature->GetCreatureTemplate()->trainer_class);
+                    // class trainers teach nothing since 5.0.4 and keep the flag for the talent options;
+                    // the trainer cache is filled at startup, and SendTrainerList opens nothing without a list
+                    if (TrainerSpellData const* trainerSpells = creature->GetTrainerSpells())
+                    {
+                        if (trainerSpells->spellList.empty())
+                            canTalk = false;
+                    }
+                    else
+                        canTalk = false;
                     // no break;
                 case GOSSIP_OPTION_GOSSIP:
                 case GOSSIP_OPTION_SPIRITGUIDE:
