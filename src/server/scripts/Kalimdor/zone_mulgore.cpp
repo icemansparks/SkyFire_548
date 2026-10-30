@@ -6,12 +6,14 @@
  /* ScriptData
  SDName: Mulgore
  SD%Complete: 100
- SDComment: Support for quest: 14491
+ SDComment: Support for quest: 14491, Fledgling Braves sparring with Bristleback Invaders at Camp Narache
  SDCategory: Mulgore
  EndScriptData */
 
  /* ContentData
  npc_agitated_earth_spirit
+ npc_fledgling_brave
+ npc_bristleback_invader
  EndContentData */
 
 #include "ScriptMgr.h"
@@ -123,7 +125,122 @@ public:
     }
 };
 
+enum CampNaracheSparring
+{
+    NPC_FLEDGLING_BRAVE         = 36942,
+    NPC_BRISTLEBACK_INVADER     = 36943,
+};
+
+// neither side takes sparring damage below this %
+int32 const SPARRING_HEALTH_MIN = 85;
+
+// The braves and invaders stand 1.5-6 yd apart in pairs; braves farther away guard the camp
+float const SPARRING_SEEK_RANGE = 6.5f;
+
+// 36942 - Fledgling Brave
+class npc_fledgling_brave : public CreatureScript
+{
+public:
+    npc_fledgling_brave() : CreatureScript("npc_fledgling_brave") { }
+
+    struct npc_fledgling_braveAI : public ScriptedAI
+    {
+        npc_fledgling_braveAI(Creature* creature) : ScriptedAI(creature) { }
+
+        void Reset() OVERRIDE
+        {
+            seekTimer = std::rand() % 2000 + 1000;
+        }
+
+        void DamageTaken(Unit* attacker, uint32& damage) OVERRIDE
+        {
+            if (attacker && attacker->GetEntry() == NPC_BRISTLEBACK_INVADER && me->HealthBelowPctDamaged(SPARRING_HEALTH_MIN, damage))
+                damage = 0;
+        }
+
+        void UpdateAI(uint32 diff) OVERRIDE
+        {
+            if (!me->IsInCombat())
+            {
+                if (seekTimer <= diff)
+                {
+                    // only from the spawn point, so a brave back from evading picks its own invader again
+                    if (me->GetDistance2d(me->GetHomePosition().GetPositionX(), me->GetHomePosition().GetPositionY()) <= 1.0f)
+                        if (Creature* invader = me->FindNearestCreature(NPC_BRISTLEBACK_INVADER, SPARRING_SEEK_RANGE))
+                            if (!invader->IsInCombat())
+                                AttackStart(invader);
+                    seekTimer = std::rand() % 2000 + 1000;
+                }
+                else
+                    seekTimer -= diff;
+            }
+
+            if (!UpdateVictim())
+                return;
+
+            DoMeleeAttackIfReady();
+        }
+
+    private:
+        uint32 seekTimer;
+    };
+
+    CreatureAI* GetAI(Creature* creature) const OVERRIDE
+    {
+        return new npc_fledgling_braveAI(creature);
+    }
+};
+
+// 36943 - Bristleback Invader
+class npc_bristleback_invader : public CreatureScript
+{
+public:
+    npc_bristleback_invader() : CreatureScript("npc_bristleback_invader") { }
+
+    struct npc_bristleback_invaderAI : public ScriptedAI
+    {
+        npc_bristleback_invaderAI(Creature* creature) : ScriptedAI(creature) { }
+
+        void DamageTaken(Unit* attacker, uint32& damage) OVERRIDE
+        {
+            if (!attacker)
+                return;
+
+            // a brave never kills an invader, so the kill stays with the player; once a player
+            // has the invader, the brave's hits stay at zero and its threat is dropped, so it
+            // can't win the invader back
+            if (attacker->GetEntry() == NPC_FLEDGLING_BRAVE)
+            {
+                if (me->HealthBelowPctDamaged(SPARRING_HEALTH_MIN, damage))
+                    damage = 0;
+                else if (me->GetVictim() && me->GetVictim() != attacker)
+                {
+                    damage = 0;
+                    me->getThreatManager().modifyThreatPercent(attacker, -100);
+                }
+                return;
+            }
+
+            // a player or pet joining in takes the invader off the brave
+            if (attacker->GetCharmerOrOwnerPlayerOrPlayerItself())
+                if (Unit* victim = me->GetVictim())
+                    if (victim->GetEntry() == NPC_FLEDGLING_BRAVE)
+                    {
+                        me->getThreatManager().modifyThreatPercent(victim, -100);
+                        AttackStart(attacker);
+                    }
+        }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const OVERRIDE
+    {
+        return new npc_bristleback_invaderAI(creature);
+    }
+};
+
 void AddSC_mulgore()
 {
     new npc_agitated_earth_spirit();
+    new npc_fledgling_brave();
+    new npc_bristleback_invader();
 }
