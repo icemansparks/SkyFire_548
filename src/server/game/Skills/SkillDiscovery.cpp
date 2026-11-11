@@ -81,21 +81,9 @@ void LoadSkillDiscoveryTable()
                 continue;
             }
 
-            // mechanic discovery
-            if (reqSpellInfo->Mechanic != MECHANIC_DISCOVERY &&
-                // explicit discovery ability
-                !reqSpellInfo->IsExplicitDiscovery())
-            {
-                if (reportedReqSpells.find(absReqSkillOrSpell) == reportedReqSpells.end())
-                {
-                    SF_LOG_ERROR("sql.sql", "Spell (ID: %u) not have MECHANIC_DISCOVERY (28) value in Mechanic field in spell.dbc"
-                        " and not 100%% chance random discovery ability but listed for spellId %u (and maybe more) in `skill_discovery_template` table",
-                        absReqSkillOrSpell, spellId);
-                    reportedReqSpells.insert(absReqSkillOrSpell);
-                }
-                continue;
-            }
-
+            // No discovery mechanic check here: the MoP research spells (Imperial Silk, Lightning Steel Ingot,
+            // the jewelcrafting gem research and others) create an item and run a script effect that learns
+            // the recipe. They carry neither MECHANIC_DISCOVERY nor the 3.3.5 explicit discovery layout.
             SkillDiscoveryStore[reqSkillOrSpell].push_back(SkillDiscoveryEntry(spellId, reqSkillValue, chance));
         }
         else if (reqSkillOrSpell == 0)                      // skill case

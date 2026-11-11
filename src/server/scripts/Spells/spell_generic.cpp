@@ -2899,6 +2899,12 @@ class spell_gen_pet_summoned : public SpellScriptLoader
         }
 };
 
+// 60893, 61177, 61288 - Alchemy, Northrend and Minor Inscription Research (explicit discovery spells)
+// 125557 Imperial Silk, 143011 Celestial Cloth, 138646 Lightning Steel Ingot, 143255 Balanced Trillium Ingot,
+// 140040 Magnificence of Leather, 140041 Magnificence of Scales, 142976 Hardened Magnificent Hide,
+// 138876-138879, 138882-138885, 138888-138891 Blacksmithing "Reborn" weapons
+// The MoP spells create their item through effect 0, which already raises the craft skill. For them the
+// script only learns a recipe and never blocks the craft once every recipe is known.
 class spell_gen_profession_research : public SpellScriptLoader
 {
     public:
@@ -2915,7 +2921,7 @@ class spell_gen_profession_research : public SpellScriptLoader
 
             SpellCastResult CheckRequirement()
             {
-                if (HasDiscoveredAllSpells(GetSpellInfo()->Id, GetCaster()->ToPlayer()))
+                if (GetSpellInfo()->IsExplicitDiscovery() && HasDiscoveredAllSpells(GetSpellInfo()->Id, GetCaster()->ToPlayer()))
                 {
                     SetCustomCastResultMessage(SPELL_CUSTOM_ERROR_NOTHING_TO_DISCOVER);
                     return SpellCastResult::SPELL_FAILED_CUSTOM_ERROR;
@@ -2933,7 +2939,8 @@ class spell_gen_profession_research : public SpellScriptLoader
                 if (uint32 discoveredSpellId = GetExplicitDiscoverySpell(spellId, caster))
                     caster->learnSpell(discoveredSpellId, false);
 
-                caster->UpdateCraftSkill(spellId);
+                if (GetSpellInfo()->IsExplicitDiscovery())
+                    caster->UpdateCraftSkill(spellId);
             }
 
             void Register() OVERRIDE
@@ -2946,6 +2953,117 @@ class spell_gen_profession_research : public SpellScriptLoader
         SpellScript* GetSpellScript() const OVERRIDE
         {
             return new spell_gen_profession_research_SpellScript();
+        }
+};
+
+enum JewelcraftingResearch
+{
+    SPELL_RESEARCH_RIVERS_HEART     = 131593,
+    SPELL_RESEARCH_PRIMORDIAL_RUBY  = 131686,
+    SPELL_RESEARCH_WILD_JADE        = 131688,
+    SPELL_RESEARCH_VERMILION_ONYX   = 131690,
+    SPELL_RESEARCH_IMPERIAL_AMETHYST = 131691,
+    SPELL_RESEARCH_SUNS_RADIANCE    = 131695,
+};
+
+// 131593, 131686, 131688, 131690, 131691, 131695 - the six jewelcrafting gem research spells
+// Teaches a cut of the researched gem; once those are all known, a cut of another gem colour.
+class spell_gen_jewelcrafting_research : public SpellScriptLoader
+{
+    public:
+        spell_gen_jewelcrafting_research() : SpellScriptLoader("spell_gen_jewelcrafting_research") { }
+
+        class spell_gen_jewelcrafting_research_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_jewelcrafting_research_SpellScript);
+
+            bool Load() OVERRIDE
+            {
+                return GetCaster()->GetTypeId() == TypeID::TYPEID_PLAYER;
+            }
+
+            void HandleScript(SpellEffIndex /*effIndex*/)
+            {
+                static uint32 const researchSpells[] =
+                {
+                    SPELL_RESEARCH_RIVERS_HEART, SPELL_RESEARCH_PRIMORDIAL_RUBY, SPELL_RESEARCH_WILD_JADE,
+                    SPELL_RESEARCH_VERMILION_ONYX, SPELL_RESEARCH_IMPERIAL_AMETHYST, SPELL_RESEARCH_SUNS_RADIANCE
+                };
+
+                Player* caster = GetCaster()->ToPlayer();
+                uint32 spellId = GetSpellInfo()->Id;
+
+                uint32 discoveredSpellId = GetExplicitDiscoverySpell(spellId, caster);
+                if (!discoveredSpellId)
+                {
+                    std::vector<uint32> others;
+                    for (uint32 researchSpell : researchSpells)
+                        if (researchSpell != spellId)
+                            if (uint32 otherSpellId = GetExplicitDiscoverySpell(researchSpell, caster))
+                                others.push_back(otherSpellId);
+
+                    if (!others.empty())
+                        discoveredSpellId = others[urand(0, uint32(others.size()) - 1)];
+                }
+
+                if (discoveredSpellId)
+                    caster->learnSpell(discoveredSpellId, false);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_gen_jewelcrafting_research_SpellScript::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_jewelcrafting_research_SpellScript();
+        }
+};
+
+enum ScrollOfWisdom
+{
+    SPELL_NORTHREND_INSCRIPTION_RESEARCH = 61177,
+};
+
+// 112996 - Scroll of Wisdom
+// Teaches a MoP inscription recipe; once those are all known, a Northrend Inscription Research recipe.
+class spell_gen_scroll_of_wisdom : public SpellScriptLoader
+{
+    public:
+        spell_gen_scroll_of_wisdom() : SpellScriptLoader("spell_gen_scroll_of_wisdom") { }
+
+        class spell_gen_scroll_of_wisdom_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_scroll_of_wisdom_SpellScript);
+
+            bool Load() OVERRIDE
+            {
+                return GetCaster()->GetTypeId() == TypeID::TYPEID_PLAYER;
+            }
+
+            void HandleScript(SpellEffIndex /*effIndex*/)
+            {
+                Player* caster = GetCaster()->ToPlayer();
+
+                uint32 discoveredSpellId = GetExplicitDiscoverySpell(GetSpellInfo()->Id, caster);
+                if (!discoveredSpellId)
+                    discoveredSpellId = GetExplicitDiscoverySpell(SPELL_NORTHREND_INSCRIPTION_RESEARCH, caster);
+
+                if (discoveredSpellId)
+                    caster->learnSpell(discoveredSpellId, false);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_gen_scroll_of_wisdom_SpellScript::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_scroll_of_wisdom_SpellScript();
         }
 };
 
@@ -3826,6 +3944,8 @@ void AddSC_generic_spell_scripts()
     new spell_gen_parachute_ic();
     new spell_gen_pet_summoned();
     new spell_gen_profession_research();
+    new spell_gen_jewelcrafting_research();
+    new spell_gen_scroll_of_wisdom();
     new spell_gen_remove_flight_auras();
     // Running Wild
     new spell_gen_running_wild();
