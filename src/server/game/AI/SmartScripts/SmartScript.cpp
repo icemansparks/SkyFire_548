@@ -365,7 +365,17 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 if (IsPlayer(*itr))
                     if (Quest const* q = sObjectMgr->GetQuestTemplate(e.action.quest.quest))
                     {
-                        (*itr)->ToPlayer()->AddQuest(q, NULL);
+                        Player* player = (*itr)->ToPlayer();
+                        bool const wasNone = player->GetQuestStatus(q->GetQuestId()) == QUEST_STATUS_NONE;
+                        player->AddQuest(q, NULL);
+                        // An auto-accept quest is in the log now; the client shows its details
+                        // window (giver portrait, no Decline) only when the server sends it.
+                        // AddQuest returns early on a full log, so the status must have changed.
+                        if (q->IsAutoAccept() && wasNone && player->GetQuestStatus(q->GetQuestId()) != QUEST_STATUS_NONE)
+                        {
+                            WorldObject* source = GetBaseObject();
+                            player->PlayerTalkClass->SendQuestGiverQuestDetails(q, source ? source->GetGUID() : player->GetGUID(), true);
+                        }
                         SF_LOG_DEBUG("scripts.ai", "SmartScript::ProcessAction:: SMART_ACTION_ADD_QUEST: Player guidLow %u add quest %u",
                             (*itr)->GetGUIDLow(), e.action.quest.quest);
                     }
