@@ -3323,6 +3323,7 @@ protected:
     typedef std::set<uint32> SeasonalQuestSet;
     typedef UNORDERED_MAP<uint32, SeasonalQuestSet> SeasonalEventQuestMap;
     QuestSet m_timedquests;
+    QuestSet m_dailyquests;
     QuestSet m_weeklyquests;
     QuestSet m_monthlyquests;
     SeasonalEventQuestMap m_seasonalquests;

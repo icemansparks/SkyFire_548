@@ -1300,18 +1300,10 @@ bool Player::SatisfyQuestDay(Quest const* qInfo, bool msg)
         return true;
     }
 
-    bool have_slot = false;
-    for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
-    {
-        uint32 id = 0;//GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1+quest_daily_idx);
-        if (qInfo->GetQuestId() == id)
-            return false;
+    if (m_dailyquests.find(qInfo->GetQuestId()) != m_dailyquests.end())
+        return false;
 
-        if (!id)
-            have_slot = true;
-    }
-
-    if (!have_slot)
+    if (m_dailyquests.size() >= PLAYER_MAX_DAILY_QUESTS)
     {
         if (msg)
         {
