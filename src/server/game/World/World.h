@@ -819,6 +819,7 @@ protected:
     void ResetRandomBG();
     void ResetGuildCap();
     void ResetCurrencyWeekCap();
+    void ResetLootLockouts();
 private:
     static std::atomic<bool> m_stopEvent;
     static uint8 m_ExitCode;

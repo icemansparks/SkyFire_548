@@ -12,6 +12,7 @@
 #include "MapReference.h"
 
 #include "Item.h"
+#include "LootLockout.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "PetDefines.h"
@@ -923,6 +924,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_RESEARCH_HISTORY = 40,
     PLAYER_LOGIN_QUERY_LOAD_RESEARCH_PROJECTS = 41,
     PLAYER_LOGIN_QUERY_LOAD_DEATH_GATE_RETURN,
+    PLAYER_LOGIN_QUERY_LOAD_LOOT_LOCKOUTS,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -1643,6 +1645,13 @@ public:
     void SetCurrency(uint32 id, uint32 count, bool printLog = true);
     void ResetCurrencyWeekCap();
     void ModifyCurrencyFlag(uint32 id, uint8 flag);
+
+    // Weekly loot lockouts: entry is the base creature entry, difficulty the DifficultyID of the kill.
+    bool HasLootLockout(LootLockoutType type, uint32 entry, uint8 difficulty) const { return m_lootLockouts.Has(type, entry, difficulty); }
+    // Stores the lockout at once, so a crash or relog cannot hand out the same reward twice. Returns false if already locked.
+    bool AddLootLockout(LootLockoutType type, uint32 entry, uint8 difficulty);
+    // Weekly reset of an online character; World::ResetLootLockouts empties the table.
+    void ClearLootLockouts() { m_lootLockouts.Clear(); }
 
     /**
       * @name   ModifyCurrency
@@ -3363,6 +3372,7 @@ protected:
     void _LoadInstanceTimeRestrictions(PreparedQueryResult result);
     void _LoadCurrency(PreparedQueryResult result);
     void _LoadCUFProfiles(PreparedQueryResult result);
+    void _LoadLootLockouts(PreparedQueryResult result);
     void _LoadResearchHistory(PreparedQueryResult result);
     void _LoadResearchProjects(PreparedQueryResult result);
     void _LoadResearchDigsites(PreparedQueryResult result);
@@ -3387,6 +3397,7 @@ protected:
     void _SaveEquipmentSets(SQLTransaction& trans);
     void _SaveBGData(SQLTransaction& trans);
     WorldLocation m_deathGateReturn;
+    LootLockoutSet m_lootLockouts;
     void _SaveDeathGateReturn(SQLTransaction& trans);
     void _SaveGlyphs(SQLTransaction& trans);
     void _SaveTalents(SQLTransaction& trans);
