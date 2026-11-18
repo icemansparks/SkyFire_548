@@ -666,6 +666,11 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_REP_DEATH_GATE_RETURN, "REPLACE INTO character_death_gate_return (guid, map, posX, posY, posZ, o) VALUES (?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_DEATH_GATE_RETURN, "DELETE FROM character_death_gate_return WHERE guid = ?", CONNECTION_ASYNC);
 
+    PrepareStatement(CHAR_SEL_CHAR_LOOT_LOCKOUTS, "SELECT entry, difficulty, type FROM character_loot_lockout WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_INS_CHAR_LOOT_LOCKOUT, "INSERT IGNORE INTO character_loot_lockout (guid, entry, difficulty, type) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHAR_LOOT_LOCKOUTS, "DELETE FROM character_loot_lockout WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ALL_LOOT_LOCKOUTS, "DELETE FROM character_loot_lockout", CONNECTION_ASYNC);
+
     // blackmarket
     PrepareStatement(CHAR_SEL_BLACKMARKET_AUCTIONS, "SELECT auctionId, templateId, startTime, currentBidder, currentBid, minIncrement, numBids FROM blackmarket_auctions", CONNECTION_SYNCH);
     PrepareStatement(CHAR_DEL_BLACKMARKET_AUCTION, "DELETE FROM blackmarket_auctions WHERE auctionId = ?", CONNECTION_ASYNC);
