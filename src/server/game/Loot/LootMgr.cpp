@@ -4,11 +4,13 @@
 */
 
 #include "Containers.h"
+#include "DBCStores.h"
 #include "Group.h"
 #include "Log.h"
 #include "LootCount.h"
 #include "LootMgr.h"
 #include "LootPacketEncoding.h"
+#include "ObjectAccessor.h"
 #include "ObjectDefines.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -137,7 +139,9 @@ uint32 LootStore::LoadLootTable()
         Field* fields = result->Fetch();
 
         uint32 entry = fields[0].GetUInt32();
-        uint32 item = fields[1].GetUInt32();
+        int32  rawItem = fields[1].GetInt32();
+        bool   currency = rawItem < 0;                  // a negative item is a currency id, as in alexkulya's tables
+        uint32 item = uint32(currency ? -rawItem : rawItem);
         float  chanceOrQuestChance = fields[2].GetFloat();
         uint16 lootmode = fields[3].GetUInt16();
         uint8  group = fields[4].GetUInt8();
@@ -156,7 +160,7 @@ uint32 LootStore::LoadLootTable()
             return false;
         }
 
-        LootStoreItem* storeitem = new LootStoreItem(item, chanceOrQuestChance, lootmode, group, mincountOrRef, maxcount);
+        LootStoreItem* storeitem = new LootStoreItem(item, chanceOrQuestChance, lootmode, group, mincountOrRef, maxcount, currency);
 
         if (!storeitem->IsValid(*this, entry))            // Validity checks
         {
@@ -277,6 +281,9 @@ bool LootStoreItem::Roll(bool rate) const
     if (chance >= 100.0f)
         return true;
 
+    if (currency)
+        return roll_chance_f(chance);
+
     if (mincountOrRef < 0)                                   // reference case
         return roll_chance_f(chance * (rate ? sWorld->getRate(Rates::RATE_DROP_ITEM_REFERENCED) : 1.0f));
 
@@ -290,6 +297,23 @@ bool LootStoreItem::Roll(bool rate) const
 // Checks correctness of values
 bool LootStoreItem::IsValid(LootStore const& store, uint32 entry) const
 {
+    if (currency)
+    {
+        if (!sCurrencyTypesStore.LookupEntry(itemid))
+        {
+            SF_LOG_ERROR("sql.sql", "Table '%s' entry %d currency %d: currency not listed in CurrencyTypes - skipped", store.GetName(), entry, itemid);
+            return false;
+        }
+
+        if (group || needs_quest || mincountOrRef <= 0 || maxcount < mincountOrRef || chance == 0)
+        {
+            SF_LOG_ERROR("sql.sql", "Table '%s' entry %d currency %d: a currency needs no group, a plain chance, a positive min count and max count not below it - skipped", store.GetName(), entry, itemid);
+            return false;
+        }
+
+        return true;
+    }
+
     if (mincountOrRef == 0)
     {
         SF_LOG_ERROR("sql.sql", "Table '%s' entry %d item %d: wrong mincountOrRef (%d) - skipped", store.GetName(), entry, itemid, mincountOrRef);
@@ -393,6 +417,13 @@ void LootItem::AddAllowedLooter(const Player* player)
 // Inserts the item into the loot (called by LootTemplate processors)
 void Loot::AddItem(LootStoreItem const& item)
 {
+    if (item.currency)
+    {
+        if (currencies.size() < MAX_NR_LOOT_ITEMS)
+            currencies.push_back(LootCurrency(item.itemid, Skyfire::Looting::CalculateLootItemCount(uint32(item.mincountOrRef), item.maxcount, uint32(std::rand()))));
+        return;
+    }
+
     ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item.itemid);
     if (!proto)
         return;
@@ -456,6 +487,7 @@ bool Loot::FillLoot(uint32 lootId, LootStore const& store, Player* lootOwner, bo
     if (!personal && group)
     {
         roundRobinPlayer = lootOwner->GetGUID();
+        currencyGroup = group->GetGUID();
 
         for (GroupReference* itr = group->GetFirstMember(); itr != NULL; itr = itr->next())
             if (Player* player = itr->GetSource())   // should actually be looted object instead of lootOwner but looter has to be really close so doesnt really matter
@@ -490,6 +522,10 @@ void Loot::FillNotNormalLootFor(Player* player, bool presentAtLooting)
     qmapitr = PlayerNonQuestNonFFAConditionalItems.find(plguid);
     if (qmapitr == PlayerNonQuestNonFFAConditionalItems.end())
         FillNonQuestNonFFAConditionalLoot(player, presentAtLooting);
+
+    // every player in reach has their own copy of the currencies
+    if (presentAtLooting && !currencies.empty())
+        currencyPlayers.insert(plguid);
 
     // if not auto-processed player will have to come and pick it up manually
     if (!presentAtLooting)
@@ -806,9 +842,53 @@ uint32 Loot::GetMaxSlotInLootFor(Player* player) const
     return items.size() + (itr != PlayerQuestItems.end() ? itr->second->size() : 0);
 }
 
+LootCurrency* Loot::CurrencyInSlot(uint32 lootSlot, Player* player)
+{
+    uint32 first = GetMaxSlotInLootFor(player);
+    if (lootSlot < first || lootSlot - first >= currencies.size())
+        return NULL;
+
+    LootCurrency& currency = currencies[lootSlot - first];
+    if (!currencyPlayers.count(player->GetGUIDLow()) || currency.lootedBy.count(player->GetGUIDLow()))
+        return NULL;
+
+    return &currency;
+}
+
+bool Loot::CurrencyPending() const
+{
+    for (uint32 low : currencyPlayers)
+    {
+        Player* player = ObjectAccessor::FindPlayer(MAKE_NEW_GUID(low, 0, HIGHGUID_PLAYER));
+        if (!player || (currencyGroup && (!player->GetGroup() || player->GetGroup()->GetGUID() != currencyGroup)))
+            continue;                                       // gone, or left the group: nobody waits for their copy
+
+        for (LootCurrency const& currency : currencies)
+            if (!currency.lootedBy.count(low))
+                return true;
+    }
+
+    return false;
+}
+
+bool Loot::HasCurrencyFor(Player* player) const
+{
+    if (!currencyPlayers.count(player->GetGUIDLow()))
+        return false;
+
+    for (LootCurrency const& currency : currencies)
+        if (!currency.lootedBy.count(player->GetGUIDLow()))
+            return true;
+
+    return false;
+}
+
 // return true if there is any FFA, quest or conditional item for the player.
 bool Loot::hasItemFor(Player* player) const
 {
+    if (HasCurrencyFor(player))
+        return true;
+
     QuestItemMap const& lootPlayerQuestItems = GetPlayerQuestItems();
     QuestItemMap::const_iterator q_itr = lootPlayerQuestItems.find(player->GetGUIDLow());
     if (q_itr != lootPlayerQuestItems.end())
@@ -1147,6 +1227,22 @@ void LootView::WriteData(ObjectGuid guid, LootType lootType, WorldPacket* data, 
     data->WriteBit(guid[0]);
 
     // currency permission loop
+    if (loot.currencyPlayers.count(viewer->GetGUIDLow()))
+    {
+        uint32 slot = loot.GetMaxSlotInLootFor(viewer);
+        for (LootCurrency const& currency : loot.currencies)
+        {
+            if (!currency.lootedBy.count(viewer->GetGUIDLow()))
+            {
+                data->WriteBits(uint8(LootSlotType::LOOT_SLOT_TYPE_OWNER), 3);
+                currencyBuff << uint32(currency.count);
+                currencyBuff << uint8(slot);
+                currencyBuff << uint32(currency.id);
+                ++currenciesShown;
+            }
+            ++slot;
+        }
+    }
 
     data->WriteBit(lootGuid[5]);
     data->WriteBit(guid[3]);
@@ -1396,7 +1492,7 @@ void LootTemplate::CopyConditions(LootItem* li) const
     for (LootStoreItemList::const_iterator _iter = Entries.begin(); _iter != Entries.end(); ++_iter)
     {
         LootStoreItem* item = *_iter;
-        if (item->itemid != li->itemid)
+        if (item->currency || item->itemid != li->itemid)
             continue;
 
         li->conditions = item->conditions;
@@ -1513,7 +1609,7 @@ bool LootTemplate::HasQuestDropForPlayer(LootTemplateMap const& store, Player co
             if (Referenced->second->HasQuestDropForPlayer(store, player, item->group))
                 return true;
         }
-        else if (player->HasQuestForItem(item->itemid))
+        else if (!item->currency && player->HasQuestForItem(item->itemid))
             return true;                                    // active quest drop found
     }
 
@@ -1568,7 +1664,7 @@ bool LootTemplate::addConditionItem(Condition* cond)
     {
         for (LootStoreItemList::iterator i = Entries.begin(); i != Entries.end(); ++i)
         {
-            if ((*i)->itemid == uint32(cond->SourceEntry))
+            if (!(*i)->currency && (*i)->itemid == uint32(cond->SourceEntry))
             {
                 (*i)->conditions.push_back(cond);
                 return true;

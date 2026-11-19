@@ -100,14 +100,15 @@ struct LootStoreItem
     uint16  lootmode;
     uint8   group : 7;
     bool    needs_quest : 1;                                 // quest drop (negative ChanceOrQuestChance in DB)
+    bool    currency : 1;                                   // itemid is a currency id (negative `item` in DB)
     uint8   maxcount : 8;                                 // max drop count for the item (mincountOrRef positive) or Ref multiplicator (mincountOrRef negative)
     ConditionList conditions;                               // additional loot condition
 
     // Constructor, converting ChanceOrQuestChance -> (chance, needs_quest)
     // displayid is filled in IsValid() which must be called after
-    LootStoreItem(uint32 _itemid, float _chanceOrQuestChance, uint16 _lootmode, uint8 _group, int32 _mincountOrRef, uint8 _maxcount)
+    LootStoreItem(uint32 _itemid, float _chanceOrQuestChance, uint16 _lootmode, uint8 _group, int32 _mincountOrRef, uint8 _maxcount, bool _currency = false)
         : itemid(_itemid), chance(fabs(_chanceOrQuestChance)), mincountOrRef(_mincountOrRef), lootmode(_lootmode),
-        group(_group), needs_quest(_chanceOrQuestChance < 0), maxcount(_maxcount)
+        group(_group), needs_quest(_chanceOrQuestChance < 0), currency(_currency), maxcount(_maxcount)
     { }
 
     bool Roll(bool rate) const;                             // Checks if the entry takes it's chance (at loot generation)
@@ -149,6 +150,17 @@ struct LootItem
     // Write packet data
     void WriteBitDataPart(LootSlotType slotType, ByteBuffer* buff);
     void WriteBasicDataPart(uint8 slot, ByteBuffer* buff);
+};
+
+// A currency amount the loot window offers next to the items. Each player in
+// reach takes their own copy once, so it is tracked per looter.
+struct LootCurrency
+{
+    uint32 id;
+    uint32 count;
+    std::set<uint32> lootedBy;                              // low GUIDs of the players who took it
+
+    LootCurrency(uint32 _id, uint32 _count) : id(_id), count(_count) { }
 };
 
 struct QuestItem
@@ -283,6 +295,9 @@ struct Loot
 
     std::vector<LootItem> items;
     std::vector<LootItem> quest_items;
+    std::vector<LootCurrency> currencies;
+    uint64 currencyGroup;                                   // GUID of the group the loot was generated for, 0 when solo; roundRobinPlayer is reset on release, so it cannot tell
+    std::set<uint32> currencyPlayers;                       // low GUIDs of the players who have a copy of the currencies
     uint32 gold;
     uint8 unlootedCount;
     uint64 roundRobinPlayer;                                // GUID of the player having the Round-Robin ownership for the loot. If 0, round robin owner has released.
@@ -293,7 +308,7 @@ struct Loot
     //  Only set for inventory items that can be right-click looted
     uint32 containerID;
 
-    Loot(uint32 _gold = 0) : gold(_gold), unlootedCount(0), roundRobinPlayer(0), loot_type(LootType::LOOT_CORPSE), maxDuplicates(1), containerID(0), _guid(0) { }
+    Loot(uint32 _gold = 0) : currencyGroup(0), gold(_gold), unlootedCount(0), roundRobinPlayer(0), loot_type(LootType::LOOT_CORPSE), maxDuplicates(1), containerID(0), _guid(0) { }
     ~Loot() { clear(); }
 
     // The client identifies an open loot window by this GUID, not by the looted object.
@@ -328,14 +343,17 @@ struct Loot
         PlayersLooting.clear();
         items.clear();
         quest_items.clear();
+        currencies.clear();
+        currencyPlayers.clear();
+        currencyGroup = 0;
         gold = 0;
         unlootedCount = 0;
         roundRobinPlayer = 0;
         i_LootValidatorRefManager.clearReferences();
     }
 
-    bool empty() const { return items.empty() && gold == 0; }
-    bool isLooted() const { return gold == 0 && unlootedCount == 0; }
+    bool empty() const { return items.empty() && currencies.empty() && gold == 0; }
+    bool isLooted() const { return gold == 0 && unlootedCount == 0 && !CurrencyPending(); }
 
     uint64 GetNotifyGUID(ObjectGuid lootGuid, Player* player) const;
     void NotifyItemRemoved(uint8 lootIndex, ObjectGuid lootGuid = 0);
@@ -350,6 +368,15 @@ struct Loot
 
     // Inserts the item into the loot (called by LootTemplate processors)
     void AddItem(LootStoreItem const& item);
+
+    // The currency a slot number of the loot window stands for, NULL when the player cannot take it.
+    // Currency slots follow the item and quest item slots of that player.
+    LootCurrency* CurrencyInSlot(uint32 lootSlot, Player* player);
+    bool HasCurrencyFor(Player* player) const;
+
+    // True while a player who is still online (and, in a group loot, still in that group) has not taken every currency.
+    // Kept apart from unlootedCount, a uint8 that counts per item.
+    bool CurrencyPending() const;
 
     LootItem* LootItemInSlot(uint32 lootslot, Player* player, QuestItem** qitem = NULL, QuestItem** ffaitem = NULL, QuestItem** conditem = NULL);
     uint32 GetMaxSlotInLootFor(Player* player) const;
