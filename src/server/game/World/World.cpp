@@ -860,6 +860,12 @@ void World::LoadConfigSettings(bool reload)
         SF_LOG_ERROR("server.loading", "Currency.MaxJusticePoints (%i) can't be negative. Set to default 4000.", getIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS));
         setIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS, 4000);
     }
+    // The cap is in displayed points and gets multiplied by 100 for storage; keep that inside int32.
+    else if (getIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS) > 20000000)
+    {
+        SF_LOG_ERROR("server.loading", "Currency.MaxJusticePoints (%u) can't be above 20000000. Set to 20000000.", getIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS));
+        setIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS, 20000000);
+    }
     //...
     //setIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS] *= 100;     //precision mod
 

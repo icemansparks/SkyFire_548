@@ -3174,7 +3174,8 @@ Currency.StartJusticePoints = 0
 
 #
 #    Currency.MaxJusticePoints
-#        Amount justice points a player can have
+#        Amount of justice points a player can have, in displayed points
+#        (4000 means 4,000 points, the 5.4.8 cap).
 #        Default: 4000
 #
 
