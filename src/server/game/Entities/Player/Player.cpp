@@ -21350,6 +21350,23 @@ void Player::StoreLootItem(uint8 lootSlot, Loot* loot, uint64 lootGuid)
     QuestItem* ffaitem = NULL;
     QuestItem* conditem = NULL;
 
+    if (LootCurrency* currency = loot->CurrencyInSlot(lootSlot, this))
+    {
+        CurrencyTypesEntry const* currencyEntry = sCurrencyTypesStore.LookupEntry(currency->id);
+        if (!currencyEntry)
+        {
+            currency->lootedBy.insert(GetGUIDLow());
+            return;
+        }
+
+        uint32 precision = (currencyEntry->Flags & CURRENCY_FLAG_HIGH_PRECISION) ? CURRENCY_PRECISION : 1;
+        ModifyCurrency(currency->id, int32(currency->count * precision));
+
+        currency->lootedBy.insert(GetGUIDLow());
+        SendNotifyLootItemRemoved(lootSlot, loot->GetNotifyGUID(lootGuid, this));
+        return;
+    }
+
     LootItem* item = loot->LootItemInSlot(lootSlot, this, &qitem, &ffaitem, &conditem);
 
     if (!item)
