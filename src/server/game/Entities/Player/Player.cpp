@@ -8114,9 +8114,10 @@ uint32 Player::_GetCurrencyWeekCap(const CurrencyTypesEntry* currency) const
         }
         case CURRENCY_TYPE_JUSTICE_POINTS:
         {
+            // Currency.MaxJusticePoints is in displayed points; storage counts hundredths.
             uint32 justicecap = sWorld->getIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS);
             if (justicecap > 0)
-                cap = justicecap;
+                cap = justicecap * ((currency->Flags & CURRENCY_FLAG_HIGH_PRECISION) ? CURRENCY_PRECISION : 1);
             return cap;
         }
     }
@@ -8165,9 +8166,10 @@ uint32 Player::GetCurrencyTotalCap(CurrencyTypesEntry const* currency) const
         }
         case CURRENCY_TYPE_JUSTICE_POINTS:
         {
+            // Currency.MaxJusticePoints is in displayed points; storage counts hundredths.
             uint32 justicecap = sWorld->getIntConfig(WorldIntConfigs::CONFIG_CURRENCY_MAX_JUSTICE_POINTS);
             if (justicecap > 0)
-                cap = justicecap;
+                cap = justicecap * ((currency->Flags & CURRENCY_FLAG_HIGH_PRECISION) ? CURRENCY_PRECISION : 1);
             break;
         }
     }
