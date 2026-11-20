@@ -2168,7 +2168,10 @@ void World::Update(uint32 diff)
         ResetGuildCap();
 
     if (m_gameTime > m_NextCurrencyReset)
+    {
+        ResetLootLockouts();                                // before ResetCurrencyWeekCap moves m_NextCurrencyReset
         ResetCurrencyWeekCap();
+    }
 
     sBattlePetSpawnMgr->Update(diff);
 
@@ -3246,6 +3249,19 @@ void World::ResetCurrencyWeekCap()
 
     m_NextCurrencyReset = time_t(m_NextCurrencyReset + DAY * getIntConfig(WorldIntConfigs::CONFIG_CURRENCY_RESET_INTERVAL));
     sWorld->setWorldState(WS_CURRENCY_RESET_TIME, uint64(m_NextCurrencyReset));
+}
+
+// Weekly loot lockouts end with the weekly currency reset, as in 5.4.8.
+void World::ResetLootLockouts()
+{
+    SF_LOG_INFO("misc", "Weekly loot lockouts reset for all characters.");
+
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ALL_LOOT_LOCKOUTS);
+    CharacterDatabase.Execute(stmt);
+
+    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+        if (Player* player = itr->second->GetPlayer())
+            player->ClearLootLockouts();
 }
 
 void World::LoadDBAllowedSecurityLevel()

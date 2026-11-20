@@ -897,3 +897,13 @@ target_include_directories(item_spec_rules_tests PRIVATE
 )
 
 add_test(NAME item_spec_rules_tests COMMAND item_spec_rules_tests)
+
+add_executable(loot_lockout_tests
+  LootLockoutTests.cpp
+)
+
+target_include_directories(loot_lockout_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/src/server/game/Loot
+)
+
+add_test(NAME loot_lockout_tests COMMAND loot_lockout_tests)

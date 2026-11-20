@@ -5248,6 +5248,10 @@ void Player::DeleteFromDB(uint64 playerguid, uint32 accountId, bool updateRealmC
             stmt->setUInt32(0, guid);
             trans->Append(stmt);
 
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_LOOT_LOCKOUTS);
+            stmt->setUInt32(0, guid);
+            trans->Append(stmt);
+
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PLAYER_BGDATA);
             stmt->setUInt32(0, guid);
             trans->Append(stmt);
@@ -12596,6 +12600,7 @@ bool Player::LoadFromDB(uint32 guid, SQLQueryHolder* holder)
     _LoadBoundInstances(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_BOUND_INSTANCES));
     _LoadInstanceTimeRestrictions(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_INSTANCE_LOCK_TIMES));
     _LoadBGData(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_BG_DATA));
+    _LoadLootLockouts(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_LOOT_LOCKOUTS));
     if (PreparedQueryResult result = holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_DEATH_GATE_RETURN))
     {
         Field* fields = result->Fetch();
@@ -22202,6 +22207,43 @@ void Player::_SaveEquipmentSets(SQLTransaction& trans)
                 break;
         }
     }
+}
+
+void Player::_LoadLootLockouts(PreparedQueryResult result)
+{
+    m_lootLockouts.Clear();
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+        //       0      1           2
+        // SELECT entry, difficulty, type FROM character_loot_lockout WHERE guid = ?
+        uint8 type = fields[2].GetUInt8();
+        if (type >= uint8(LootLockoutType::Max))
+        {
+            SF_LOG_ERROR("entities.player", "Player::_LoadLootLockouts: player %s (GUID: %u) has a loot lockout of unknown type %u, skipped.", GetName().c_str(), GetGUIDLow(), type);
+            continue;
+        }
+
+        m_lootLockouts.Add(LootLockoutType(type), fields[0].GetUInt32(), fields[1].GetUInt8());
+    }
+    while (result->NextRow());
+}
+
+bool Player::AddLootLockout(LootLockoutType type, uint32 entry, uint8 difficulty)
+{
+    if (!m_lootLockouts.Add(type, entry, difficulty))
+        return false;
+
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_LOOT_LOCKOUT);
+    stmt->setUInt32(0, GetGUIDLow());
+    stmt->setUInt32(1, entry);
+    stmt->setUInt8(2, difficulty);
+    stmt->setUInt8(3, uint8(type));
+    CharacterDatabase.Execute(stmt);
+    return true;
 }
 
 void Player::_SaveDeathGateReturn(SQLTransaction& trans)
