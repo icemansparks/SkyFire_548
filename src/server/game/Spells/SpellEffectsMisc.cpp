@@ -300,7 +300,7 @@ void Spell::EffectBonusRoll(SpellEffIndex /*effIndex*/)
     if (!player->HasCurrency(loot->Currency, 1))
         return;
 
-    // bosses that share one prompt spell each hold their own aura; only this boss's goes
+    // the boss's prompt goes
     player->RemoveAurasDueToSpell(promptSpell, prompt->GetCasterGUID());
     m_bonusRollGiven = true;
 

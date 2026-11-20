@@ -33,6 +33,7 @@ namespace Skyfire::BonusLoot
     // Gives the player the roll prompt (the row's aura) when they hold the currency, are not
     // locked out and have no prompt for it yet. source is the boss or chest; the aura keeps it as
     // its caster and the difficulty as its amount, because several bosses share one prompt spell.
+    // A player holds one prompt per prompt spell: a newer boss's prompt replaces the older one.
     void GrantPrompt(Player* player, BonusLootTemplate const& loot, uint8 difficulty, WorldObject* source);
     // The row a prompt aura was granted for, from the aura's caster.
     BonusLootTemplate const* GetForPrompt(uint64 casterGuid);

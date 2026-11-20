@@ -175,6 +175,10 @@ void Skyfire::BonusLoot::GrantPrompt(Player* player, BonusLootTemplate const& lo
     if (!spellInfo)
         return;
 
+    // the roll cast names only the spell, not the boss: a newer prompt of a shared prompt spell
+    // replaces the older one, so accepting always rolls for the boss whose prompt is held
+    player->RemoveAurasDueToSpell(loot.Spell);
+
     int32 amounts[MAX_SPELL_EFFECTS] = { };
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
         if (spellInfo->Effects[i].IsAura(SPELL_AURA_BONUS_ROLL_TRIGGER))
