@@ -5,11 +5,14 @@
 
 #include "KillReward.h"
 #include "KillRewardRules.h"
+#include "BonusLoot.h"
+#include "BonusLootRules.h"
 
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "DBCEnums.h"
 #include "DBCStores.h"
+#include "GameObject.h"
 #include "Chat.h"
 #include "Containers.h"
 #include "Group.h"
@@ -81,8 +84,9 @@ namespace
     }
 
     // The killer's group members in reward range, or the killer alone. A world boss with personal
-    // loot can be fought by anyone, so every player in reward range on its threat list counts too.
-    std::vector<Player*> GetRewardedPlayers(Player* killer, Creature* victim, bool everyoneWhoFought)
+    // loot or a bonus roll can be fought by anyone, so every player in reward range on its threat
+    // list counts too. victim is the killed creature or the opened chest.
+    std::vector<Player*> GetRewardedPlayers(Player* killer, WorldObject* victim, bool everyoneWhoFought)
     {
         std::vector<Player*> players;
         auto add = [&players](Player* player)
@@ -101,8 +105,8 @@ namespace
         else
             add(killer);
 
-        if (everyoneWhoFought)
-            for (HostileReference* ref : victim->getThreatManager().getThreatList())
+        if (Creature* creature = everyoneWhoFought ? victim->ToCreature() : nullptr)
+            for (HostileReference* ref : creature->getThreatManager().getThreatList())
                 if (Unit* target = ref->getTarget())
                     if (Player* player = target->GetCharmerOrOwnerPlayerOrPlayerItself())
                         if (player->IsAtGroupRewardDistance(victim))
@@ -314,11 +318,16 @@ void Skyfire::KillReward::Reward(Player* killer, Creature* victim)
     uint32 entry = victim->GetEntry();
     CreatureLootCurrencyList const* currencies = GetCreatureLootCurrency(entry);
     PersonalLootTemplate const* personalLoot = UsesPersonalLoot(victim) ? GetPersonalLoot(entry) : nullptr;
-    if (!currencies && !personalLoot)
+    // bosses whose loot sits in a chest give the bonus roll prompt when the chest opens
+    BonusLootTemplate const* bonusLoot = Skyfire::BonusLoot::Get(entry);
+    if (bonusLoot && bonusLoot->Source != Skyfire::BonusLoot::SOURCE_CREATURE)
+        bonusLoot = nullptr;
+
+    if (!currencies && !personalLoot && !bonusLoot)
         return;
 
     uint8 difficulty = uint8(victim->GetMap()->GetDifficulty());
-    bool worldBoss = personalLoot && !victim->GetMap()->Instanceable();
+    bool worldBoss = (personalLoot || bonusLoot) && !victim->GetMap()->Instanceable();
 
     for (Player* player : GetRewardedPlayers(killer, victim, worldBoss))
     {
@@ -330,5 +339,22 @@ void Skyfire::KillReward::Reward(Player* killer, Creature* victim)
 
         if (personalLoot && !lockedOut)
             RewardPersonalLoot(player, victim, *personalLoot, difficulty);
+
+        if (bonusLoot)
+            Skyfire::BonusLoot::GrantPrompt(player, *bonusLoot, difficulty, victim);
     }
+}
+
+void Skyfire::KillReward::RewardChestOpen(Player* opener, GameObject* chest)
+{
+    if (!opener || !chest)
+        return;
+
+    BonusLootTemplate const* bonusLoot = Skyfire::BonusLoot::GetForChestLoot(chest->GetGOInfo()->GetLootId());
+    if (!bonusLoot)
+        return;
+
+    uint8 difficulty = uint8(chest->GetMap()->GetDifficulty());
+    for (Player* player : GetRewardedPlayers(opener, chest, false))
+        Skyfire::BonusLoot::GrantPrompt(player, *bonusLoot, difficulty, chest);
 }

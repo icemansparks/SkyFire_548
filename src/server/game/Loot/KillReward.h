@@ -11,6 +11,7 @@
 #include <vector>
 
 class Creature;
+class GameObject;
 class Item;
 class Player;
 
@@ -33,8 +34,8 @@ struct PersonalLootTemplate
     std::vector<uint32> Items;
 };
 
-// Rewards a creature kill gives beyond experience: currency on kill and personal loot.
-// The bonus roll trigger extends Reward().
+// Rewards a creature kill gives beyond experience: currency on kill, personal loot and the
+// bonus roll prompt.
 namespace Skyfire::KillReward
 {
     void LoadCreatureLootCurrency();
@@ -59,6 +60,10 @@ namespace Skyfire::KillReward
     // Rewards each group member in reward range, or the killer alone; on a world boss with
     // personal loot also every other player in reward range who fought it.
     void Reward(Player* killer, Creature* victim);
+
+    // Called when a chest's loot is filled on first opening: a boss whose loot sits in that chest
+    // gives the bonus roll prompt to the opener's group members in reward range.
+    void RewardChestOpen(Player* opener, GameObject* chest);
 }
 
 #endif

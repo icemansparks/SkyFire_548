@@ -1161,6 +1161,17 @@ static bool IsSpellKeyForTargetLock(Player* player, uint64 targetGuid, uint32 sp
     return false;
 }
 
+// True when spellId is the roll of a bonus roll prompt the player holds: the client casts it
+// when the player accepts the prompt, and the player never learns it.
+static bool IsBonusRollOfHeldPrompt(Player* player, uint32 spellId)
+{
+    for (AuraEffect const* prompt : player->GetAuraEffectsByType(SPELL_AURA_BONUS_ROLL_TRIGGER))
+        if (prompt->GetSpellInfo()->Effects[prompt->GetEffIndex()].TriggerSpell == spellId)
+            return true;
+
+    return false;
+}
+
 bool ValidateCastSource(WorldPacket& recvPacket, Player* player, Unit*& caster, SpellInfo const* spellInfo, uint32 spellId, uint64 targetGuid)
 {
     if (caster->GetTypeId() == TypeID::TYPEID_UNIT && !caster->ToCreature()->HasSpell(spellId))
@@ -1178,11 +1189,11 @@ bool ValidateCastSource(WorldPacket& recvPacket, Player* player, Unit*& caster, 
 
     if (caster->GetTypeId() == TypeID::TYPEID_PLAYER && !caster->ToPlayer()->HasActiveSpell(spellId))
     {
-        // Archaeology solves are cast from the journal UI, not the spellbook, and a spell-key lock
-        // is opened with the lock's own spell.
+        // Archaeology solves are cast from the journal UI, not the spellbook, a spell-key lock
+        // is opened with the lock's own spell, and a bonus roll comes from its prompt.
         Player* casterPlayer = caster->ToPlayer();
         bool const researchSolve = spellInfo->ResearchProject && casterPlayer->HasResearchingProject(spellInfo->ResearchProject);
-        if (!researchSolve && !IsSpellKeyForTargetLock(casterPlayer, targetGuid, spellId))
+        if (!researchSolve && !IsSpellKeyForTargetLock(casterPlayer, targetGuid, spellId) && !IsBonusRollOfHeldPrompt(casterPlayer, spellId))
         {
             recvPacket.rfinish(); // prevent spam at ignore packet
             return false;

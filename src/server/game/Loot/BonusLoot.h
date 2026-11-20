@@ -30,6 +30,13 @@ namespace Skyfire::BonusLoot
     BonusLootTemplate const* Get(uint32 entry);
     BonusLootTemplate const* GetForChestLoot(uint32 lootId); // gameobject source whose chest has this loot id
 
+    // Gives the player the roll prompt (the row's aura) when they hold the currency, are not
+    // locked out and have no prompt for it yet. source is the boss or chest; the aura keeps it as
+    // its caster and the difficulty as its amount, because several bosses share one prompt spell.
+    void GrantPrompt(Player* player, BonusLootTemplate const& loot, uint8 difficulty, WorldObject* source);
+    // The row a prompt aura was granted for, from the aura's caster.
+    BonusLootTemplate const* GetForPrompt(uint64 casterGuid);
+
     // Spends the currency, sets the weekly lockout and rolls: an item for the player's loot
     // specialization at the configured chance, else gold. False when the player is locked out
     // or lacks the currency; nothing is spent then.

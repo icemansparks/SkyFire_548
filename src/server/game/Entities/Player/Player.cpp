@@ -9674,6 +9674,9 @@ void Player::SendLoot(uint64 guid, LootType loot_type, bool isAoE)
 
                 loot->FillLoot(lootid, LootTemplates_Gameobject, this, !groupRules, false, go->GetLootMode());
 
+                if (go->GetGOInfo()->type == GAMEOBJECT_TYPE_CHEST)
+                    Skyfire::KillReward::RewardChestOpen(this, go);
+
                 // get next RR player (for next loot)
                 if (groupRules)
                     group->UpdateLooterGuid(go);

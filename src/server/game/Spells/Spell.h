@@ -427,6 +427,7 @@ public:
     void EffectResurrectWithAura(SpellEffIndex effIndex);
     void EffectCreateAreaTrigger(SpellEffIndex effIndex);
     void EffectRemoveTalent(SpellEffIndex effIndex);
+    void EffectBonusRoll(SpellEffIndex effIndex);
     void EffectHealBattlePetPct(SpellEffIndex effIndex);
     void EffectBattlePetsUnlock(SpellEffIndex effIndex);
 
@@ -628,6 +629,7 @@ protected:
     // These vars are used in both delayed spell system and modified immediate spell system
     bool m_referencedFromCurrentSpell;                  // mark as references to prevent deleted and access by dead pointers
     bool m_executedCurrently;                           // mark as executed to prevent deleted and access by dead pointers
+    bool m_bonusRollGiven = false;                      // a bonus roll spell rolls once per cast, whatever its number of effects
     bool m_needComboPoints;
     uint8 m_applyMultiplierMask;
     float m_damageMultipliers[3];

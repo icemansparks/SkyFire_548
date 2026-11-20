@@ -11,6 +11,7 @@
 #include "Containers.h"
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
+#include "GameObject.h"
 #include "Item.h"
 #include "Log.h"
 #include "LootMgr.h"
@@ -161,6 +162,36 @@ BonusLootTemplate const* Skyfire::BonusLoot::GetForChestLoot(uint32 lootId)
     for (auto const& itr : BonusLootStore)
         if (itr.second.Source == SOURCE_GAMEOBJECT && (itr.second.LootIdNormal == lootId || itr.second.LootIdHeroic == lootId))
             return &itr.second;
+
+    return nullptr;
+}
+
+void Skyfire::BonusLoot::GrantPrompt(Player* player, BonusLootTemplate const& loot, uint8 difficulty, WorldObject* source)
+{
+    if (!player->HasCurrency(loot.Currency, 1) || player->HasLootLockout(LootLockoutType::BonusLoot, loot.Entry, difficulty) || player->HasAura(loot.Spell, source->GetGUID()))
+        return;
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(loot.Spell);
+    if (!spellInfo)
+        return;
+
+    int32 amounts[MAX_SPELL_EFFECTS] = { };
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+        if (spellInfo->Effects[i].IsAura(SPELL_AURA_BONUS_ROLL_TRIGGER))
+            amounts[i] = difficulty;
+
+    if (Aura* aura = Aura::TryRefreshStackOrCreate(spellInfo, MAX_EFFECT_MASK, player, source->ToUnit(), amounts, nullptr, source->GetGUID()))
+        aura->ApplyForTargets();
+}
+
+BonusLootTemplate const* Skyfire::BonusLoot::GetForPrompt(uint64 casterGuid)
+{
+    if (IS_CRE_OR_VEH_GUID(casterGuid))
+        return Get(GUID_ENPART(casterGuid));
+
+    if (IS_GAMEOBJECT_GUID(casterGuid))
+        if (GameObjectTemplate const* chest = sObjectMgr->GetGameObjectTemplate(GUID_ENPART(casterGuid)))
+            return GetForChestLoot(chest->GetLootId());
 
     return nullptr;
 }
