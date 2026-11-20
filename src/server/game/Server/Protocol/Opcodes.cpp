@@ -681,6 +681,7 @@ void OpcodeTable::InitializeServerTable()
     DEFINE_OPCODE_HANDLER(SMSG_DISMOUNT,                                       0x0E3A, STATUS_NEVER    ); // 5.4.8 18414
     DEFINE_OPCODE_HANDLER(SMSG_DISPEL_FAILED,                                  0x085B, STATUS_UNHANDLED); // 5.4.8 18414
     DEFINE_OPCODE_HANDLER(SMSG_DISPLAY_GAME_ERROR,                             0x181F, STATUS_NEVER    ); // 5.4.8 18414
+    DEFINE_OPCODE_HANDLER(SMSG_DISPLAY_TOAST,                                  0x001B, STATUS_NEVER    ); // 5.4.8 18414
     DEFINE_OPCODE_HANDLER(SMSG_DUEL_COMPLETE,                                  0x1C0A, STATUS_NEVER    ); // 5.4.8 18414
     DEFINE_OPCODE_HANDLER(SMSG_DUEL_COUNTDOWN,                                 0x129F, STATUS_NEVER    ); // 5.4.8 18414
     DEFINE_OPCODE_HANDLER(SMSG_DUEL_INBOUNDS,                                  0x163A, STATUS_NEVER    ); // 5.4.8 18414

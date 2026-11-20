@@ -8,6 +8,9 @@
 
 #include "Define.h"
 
+class Player;
+class WorldObject;
+
 // One row of `bonus_loot_template`.
 struct BonusLootTemplate
 {
@@ -26,6 +29,11 @@ namespace Skyfire::BonusLoot
     void Load();                                            // after the spell info store and creature templates
     BonusLootTemplate const* Get(uint32 entry);
     BonusLootTemplate const* GetForChestLoot(uint32 lootId); // gameobject source whose chest has this loot id
+
+    // Spends the currency, sets the weekly lockout and rolls: an item for the player's loot
+    // specialization at the configured chance, else gold. False when the player is locked out
+    // or lacks the currency; nothing is spent then.
+    bool Roll(Player* player, BonusLootTemplate const& loot, uint8 difficulty);
 }
 
 #endif

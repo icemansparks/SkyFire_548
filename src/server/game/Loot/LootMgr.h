@@ -248,6 +248,9 @@ public:
     void CheckLootRefs(LootTemplateMap const& store, LootIdSet* ref_set) const;
     bool addConditionItem(Condition* cond);
     bool isReference(uint32 id);
+    // Item ids the template can give, references followed; quest drops, currency and
+    // conditioned entries are left out (the bonus roll draws from this list).
+    void CollectItemIds(std::vector<uint32>& items, uint8 depth = 0) const;
 
 private:
     LootStoreItemList Entries;                          // not grouped only

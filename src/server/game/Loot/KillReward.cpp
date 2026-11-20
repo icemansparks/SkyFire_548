@@ -45,39 +45,6 @@ namespace
                     player->ModifyCurrency(row.CurrencyId, int32(row.Count)); // weekly and total caps apply here
     }
 
-    // ItemNameDescription.dbc is keyed by item id in 5.4.8; flex items carry "Flexible".
-    bool IsFlexibleItem(uint32 itemId)
-    {
-        ItemNameDescriptionEntry const* entry = sItemNameDescriptionStore.LookupEntry(itemId);
-        return entry && entry->Description && std::strcmp(entry->Description, "Flexible") == 0;
-    }
-
-    void GivePersonalLootItem(Player* player, Creature* boss, uint32 itemId)
-    {
-        ItemPosCountVec dest;
-        if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, 1) == EQUIP_ERR_OK)
-        {
-            if (Item* item = player->StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId)))
-            {
-                player->SendNewItem(item, 1, true, false, true); // "You receive loot" in chat, shown to the group too
-                return;
-            }
-        }
-
-        // bags full: the item comes by mail from the boss
-        if (Item* item = Item::CreateItem(itemId, 1, player))
-        {
-            SQLTransaction trans = CharacterDatabase.BeginTransaction();
-            item->SaveToDB(trans);
-            MailDraft("Personal loot", "Your bags were full when you earned this.").AddItem(item)
-                .SendMailTo(trans, player, MailSender(boss), MAIL_CHECK_MASK_COPIED);
-            CharacterDatabase.CommitTransaction(trans);
-            ChatHandler(player->GetSession()).PSendSysMessage("Your bags are full: your personal loot [%s] was sent by mail.", sObjectMgr->GetItemTemplate(itemId)->Name1.c_str()); // the mail owns the item now, do not touch it
-        }
-        else
-            SF_LOG_ERROR("loot", "Personal loot: item %u could not be created for player %s (boss %u)", itemId, player->GetName().c_str(), boss->GetEntry());
-    }
-
     // One roll per player, boss and difficulty a week: an item for the player's loot specialization
     // at the configured chance, else the boss's gold bag; then the weekly tracking quest.
     void RewardPersonalLoot(Player* player, Creature* boss, PersonalLootTemplate const& loot, uint8 difficulty)
@@ -94,7 +61,7 @@ namespace
         {
             std::vector<uint32> fitting;
             for (uint32 item : loot.Items)
-                if (IsFlexibleItem(item) == flex && player->IsItemFitToSpecialization(sObjectMgr->GetItemTemplate(item)))
+                if (Skyfire::KillReward::IsFlexibleItem(item) == flex && player->IsItemFitToSpecialization(sObjectMgr->GetItemTemplate(item)))
                     fitting.push_back(item);
 
             if (!fitting.empty())
@@ -104,7 +71,7 @@ namespace
         if (!itemId)
             itemId = flex && loot.MoneyBagFlex ? loot.MoneyBagFlex : loot.MoneyBag;
 
-        GivePersonalLootItem(player, boss, itemId);
+        Skyfire::KillReward::GiveLootItem(player, boss->GetEntry(), itemId, "Personal loot");
 
         // a weekly tracker is repeatable, so GetQuestStatus never reads REWARDED for it: ask the weekly list
         if (loot.QuestTracker && player->GetQuestStatus(loot.QuestTracker) != QUEST_STATUS_REWARDED)
@@ -143,6 +110,46 @@ namespace
 
         return players;
     }
+}
+
+// ItemNameDescription.dbc is keyed by item id in 5.4.8; flex items carry "Flexible".
+bool Skyfire::KillReward::IsFlexibleItem(uint32 itemId)
+{
+    ItemNameDescriptionEntry const* entry = sItemNameDescriptionStore.LookupEntry(itemId);
+    return entry && entry->Description && std::strcmp(entry->Description, "Flexible") == 0;
+}
+
+bool Skyfire::KillReward::GiveLootItem(Player* player, uint32 bossEntry, uint32 itemId, char const* what, Item** stored)
+{
+    if (stored)
+        *stored = nullptr;
+
+    ItemPosCountVec dest;
+    if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, 1) == EQUIP_ERR_OK)
+    {
+        if (Item* item = player->StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId)))
+        {
+            player->SendNewItem(item, 1, true, false, true); // "You receive loot" in chat, shown to the group too
+            if (stored)
+                *stored = item;
+            return true;
+        }
+    }
+
+    // bags full: the item comes by mail from the boss
+    if (Item* item = Item::CreateItem(itemId, 1, player))
+    {
+        SQLTransaction trans = CharacterDatabase.BeginTransaction();
+        item->SaveToDB(trans);
+        MailDraft(what, "Your bags were full when you earned this.").AddItem(item)
+            .SendMailTo(trans, player, MailSender(MAIL_CREATURE, bossEntry), MAIL_CHECK_MASK_COPIED);
+        CharacterDatabase.CommitTransaction(trans);
+        ChatHandler(player->GetSession()).PSendSysMessage("Your bags are full: %s [%s] was sent by mail.", what, sObjectMgr->GetItemTemplate(itemId)->Name1.c_str()); // the mail owns the item now, do not touch it
+        return true;
+    }
+
+    SF_LOG_ERROR("loot", "%s: item %u could not be created for player %s (boss %u)", what, itemId, player->GetName().c_str(), bossEntry);
+    return false;
 }
 
 void Skyfire::KillReward::LoadCreatureLootCurrency()

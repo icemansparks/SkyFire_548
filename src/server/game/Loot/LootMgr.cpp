@@ -1710,6 +1710,34 @@ bool LootTemplate::addConditionItem(Condition* cond)
     return false;
 }
 
+void LootTemplate::CollectItemIds(std::vector<uint32>& items, uint8 depth) const
+{
+    auto collect = [&items, depth](LootStoreItemList const& list)
+    {
+        for (LootStoreItem const* entry : list)
+        {
+            if (entry->needs_quest || entry->currency || !entry->conditions.empty())
+                continue;
+
+            if (entry->mincountOrRef >= 0)
+                items.push_back(entry->itemid);
+            else if (depth < 8) // reference loops are reported at load; stop here regardless
+                if (LootTemplate const* ref = LootTemplates_Reference.GetLootFor(-entry->mincountOrRef))
+                    ref->CollectItemIds(items, depth + 1);
+        }
+    };
+
+    collect(Entries);
+    for (LootGroup* group : Groups)
+    {
+        if (!group)
+            continue;
+
+        collect(*group->GetExplicitlyChancedItemList());
+        collect(*group->GetEqualChancedItemList());
+    }
+}
+
 bool LootTemplate::isReference(uint32 id)
 {
     for (LootStoreItemList::const_iterator ieItr = Entries.begin(); ieItr != Entries.end(); ++ieItr)

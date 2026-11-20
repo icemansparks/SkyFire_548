@@ -11,6 +11,7 @@
 #include <vector>
 
 class Creature;
+class Item;
 class Player;
 
 // One row of `creature_loot_currency`: currency paid straight into the currency tab when the creature dies.
@@ -44,6 +45,15 @@ namespace Skyfire::KillReward
 
     // True when this kill pays personal loot instead of corpse loot (world boss in the open world, raid finder, flex).
     bool UsesPersonalLoot(Creature const* creature);
+
+    // True for flex items (ItemNameDescription "Flexible").
+    bool IsFlexibleItem(uint32 itemId);
+
+    // Stores a loot item in the player's bags, or mails it from the boss when they are full.
+    // what names the reward in the mail subject and chat ("Personal loot"). Returns false when the
+    // item could not be created (the player gets nothing); true when stored or mailed. stored,
+    // when given, receives the stored item, nullptr when it was mailed.
+    bool GiveLootItem(Player* player, uint32 bossEntry, uint32 itemId, char const* what, Item** stored = nullptr);
 
     // Called once per creature kill with the player credited for it (the loot recipient).
     // Rewards each group member in reward range, or the killer alone; on a world boss with

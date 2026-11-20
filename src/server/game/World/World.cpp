@@ -1372,6 +1372,15 @@ void World::LoadConfigSettings(bool reload)
         SetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE, 50.0f);
     }
 
+    SetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE, sConfigMgr->GetFloatDefault("BonusRoll.Chance", 50.0f));
+    if (GetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE) < 0.0f || GetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE) > 100.0f)
+    {
+        SF_LOG_ERROR("server.loading", "BonusRoll.Chance (%f) must be between 0 and 100. Using 50 instead.", GetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE));
+        SetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE, 50.0f);
+    }
+    setIntConfig(WorldIntConfigs::CONFIG_BONUS_ROLL_MONEY_MIN, sConfigMgr->GetIntDefault("BonusRoll.MoneyMin", 285000));
+    setIntConfig(WorldIntConfigs::CONFIG_BONUS_ROLL_MONEY_MAX, sConfigMgr->GetIntDefault("BonusRoll.MoneyMax", 1285000));
+
     //packet spoof punishment
     setIntConfig(WorldIntConfigs::CONFIG_PACKET_SPOOF_POLICY, sConfigMgr->GetIntDefault("PacketSpoof.Policy", (uint32)WorldSession::DosProtection::POLICY_KICK));
     setIntConfig(WorldIntConfigs::CONFIG_PACKET_SPOOF_BANMODE, sConfigMgr->GetIntDefault("PacketSpoof.BanMode", (uint32)BAN_ACCOUNT));
