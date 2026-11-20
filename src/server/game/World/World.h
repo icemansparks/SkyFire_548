@@ -190,6 +190,7 @@ enum class WorldFloatConfigs
     CONFIG_STATS_LIMITS_PARRY,
     CONFIG_STATS_LIMITS_BLOCK,
     CONFIG_STATS_LIMITS_CRIT,
+    CONFIG_PERSONAL_LOOT_CHANCE,
     FLOAT_CONFIG_VALUE_COUNT
 };
 
@@ -819,6 +820,7 @@ protected:
     void ResetRandomBG();
     void ResetGuildCap();
     void ResetCurrencyWeekCap();
+    void ResetLootLockouts();
 private:
     static std::atomic<bool> m_stopEvent;
     static uint8 m_ExitCode;

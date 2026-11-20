@@ -2279,6 +2279,15 @@ Stats.Limits.Block = 95.0
 Stats.Limits.Crit  = 95.0
 
 #
+#    PersonalLoot.Chance
+#        Description: Chance in percent that a personal loot roll (world bosses, raid finder,
+#                     flex) gives an item for the player's loot specialization instead of the
+#                     boss's gold bag. Flex adds one point per player above ten.
+#        Default:     50
+
+PersonalLoot.Chance = 50
+
+#
 ###################################################################################################
 
 ###################################################################################################

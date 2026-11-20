@@ -22,6 +22,7 @@
 #include "Group.h"
 #include "InstanceSaveMgr.h"
 #include "InstanceScript.h"
+#include "KillReward.h"
 #include "Log.h"
 #include "Map.h"
 #include "MapManager.h"
@@ -6769,10 +6770,14 @@ void Unit::Kill(Unit* victim, bool durabilityLoss)
                 creature->lootForPickPocketed = false;
 
             loot->clear();
-            if (uint32 lootid = creature->GetCreatureTemplate()->lootid)
-                loot->FillLoot(lootid, LootTemplates_Creature, looter, false, false, creature->GetLootMode());
+            // personal loot replaces the corpse loot of world bosses, raid finder and flex bosses
+            if (!Skyfire::KillReward::UsesPersonalLoot(creature))
+            {
+                if (uint32 lootid = creature->GetCreatureTemplate()->lootid)
+                    loot->FillLoot(lootid, LootTemplates_Creature, looter, false, false, creature->GetLootMode());
 
-            loot->generateMoneyLoot(creature->GetCreatureTemplate()->mingold, creature->GetCreatureTemplate()->maxgold);
+                loot->generateMoneyLoot(creature->GetCreatureTemplate()->mingold, creature->GetCreatureTemplate()->maxgold);
+            }
         }
 
         player->RewardPlayerAndGroupAtKill(victim, false);
@@ -6876,7 +6881,8 @@ void Unit::Kill(Unit* victim, bool durabilityLoss)
         {
             creature->DeleteThreatList();
             CreatureTemplate const* cInfo = creature->GetCreatureTemplate();
-            if (cInfo && (cInfo->lootid || cInfo->maxgold > 0))
+            // a personal loot boss has no corpse loot to open
+            if (cInfo && (cInfo->lootid || cInfo->maxgold > 0) && !Skyfire::KillReward::UsesPersonalLoot(creature))
                 creature->SetFlag(OBJECT_FIELD_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
         }
 
