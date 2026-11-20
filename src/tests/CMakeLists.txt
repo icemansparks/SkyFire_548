@@ -887,3 +887,13 @@ target_include_directories(kill_reward_rules_tests PRIVATE
 )
 
 add_test(NAME kill_reward_rules_tests COMMAND kill_reward_rules_tests)
+
+add_executable(item_spec_rules_tests
+  ItemSpecRulesTests.cpp
+)
+
+target_include_directories(item_spec_rules_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/src/server/game/Loot
+)
+
+add_test(NAME item_spec_rules_tests COMMAND item_spec_rules_tests)
