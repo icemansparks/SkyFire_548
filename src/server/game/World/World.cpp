@@ -40,6 +40,8 @@
 #include "GuildMgr.h"
 #include "InstanceSaveMgr.h"
 #include "ItemEnchantmentMgr.h"
+#include "KillReward.h"
+#include "BonusLoot.h"
 #include "Language.h"
 #include "LegacyTransportSupport.h"
 #include "LFGMgr.h"
@@ -1363,6 +1365,22 @@ void World::LoadConfigSettings(bool reload)
     SetFloatConfig(WorldFloatConfigs::CONFIG_STATS_LIMITS_BLOCK, sConfigMgr->GetFloatDefault("Stats.Limits.Block", 95.0f));
     SetFloatConfig(WorldFloatConfigs::CONFIG_STATS_LIMITS_CRIT, sConfigMgr->GetFloatDefault("Stats.Limits.Crit", 95.0f));
 
+    SetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE, sConfigMgr->GetFloatDefault("PersonalLoot.Chance", 50.0f));
+    if (GetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE) < 0.0f || GetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE) > 100.0f)
+    {
+        SF_LOG_ERROR("server.loading", "PersonalLoot.Chance (%f) must be between 0 and 100. Using 50 instead.", GetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE));
+        SetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE, 50.0f);
+    }
+
+    SetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE, sConfigMgr->GetFloatDefault("BonusRoll.Chance", 50.0f));
+    if (GetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE) < 0.0f || GetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE) > 100.0f)
+    {
+        SF_LOG_ERROR("server.loading", "BonusRoll.Chance (%f) must be between 0 and 100. Using 50 instead.", GetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE));
+        SetFloatConfig(WorldFloatConfigs::CONFIG_BONUS_ROLL_CHANCE, 50.0f);
+    }
+    setIntConfig(WorldIntConfigs::CONFIG_BONUS_ROLL_MONEY_MIN, sConfigMgr->GetIntDefault("BonusRoll.MoneyMin", 285000));
+    setIntConfig(WorldIntConfigs::CONFIG_BONUS_ROLL_MONEY_MAX, sConfigMgr->GetIntDefault("BonusRoll.MoneyMax", 1285000));
+
     //packet spoof punishment
     setIntConfig(WorldIntConfigs::CONFIG_PACKET_SPOOF_POLICY, sConfigMgr->GetIntDefault("PacketSpoof.Policy", (uint32)WorldSession::DosProtection::POLICY_KICK));
     setIntConfig(WorldIntConfigs::CONFIG_PACKET_SPOOF_BANMODE, sConfigMgr->GetIntDefault("PacketSpoof.BanMode", (uint32)BAN_ACCOUNT));
@@ -1734,6 +1752,15 @@ void World::SetInitialWorldSettings()
 
     // Loot tables
     LoadLootTables();
+
+    SF_LOG_INFO("server.loading", "Loading creature kill currency...");
+    Skyfire::KillReward::LoadCreatureLootCurrency();          // must be after LoadCreatureTemplates()
+
+    SF_LOG_INFO("server.loading", "Loading personal loot...");
+    Skyfire::KillReward::LoadPersonalLoot();                  // must be after LoadItemTemplates() and LoadQuests()
+
+    SF_LOG_INFO("server.loading", "Loading bonus loot templates...");
+    Skyfire::BonusLoot::Load();                               // must be after the spell info store and creature templates
 
     SF_LOG_INFO("server.loading", "Loading Skill Discovery Table...");
     LoadSkillDiscoveryTable();
@@ -2164,7 +2191,10 @@ void World::Update(uint32 diff)
         ResetGuildCap();
 
     if (m_gameTime > m_NextCurrencyReset)
+    {
+        ResetLootLockouts();                                // before ResetCurrencyWeekCap moves m_NextCurrencyReset
         ResetCurrencyWeekCap();
+    }
 
     sBattlePetSpawnMgr->Update(diff);
 
@@ -3242,6 +3272,19 @@ void World::ResetCurrencyWeekCap()
 
     m_NextCurrencyReset = time_t(m_NextCurrencyReset + DAY * getIntConfig(WorldIntConfigs::CONFIG_CURRENCY_RESET_INTERVAL));
     sWorld->setWorldState(WS_CURRENCY_RESET_TIME, uint64(m_NextCurrencyReset));
+}
+
+// Weekly loot lockouts end with the weekly currency reset, as in 5.4.8.
+void World::ResetLootLockouts()
+{
+    SF_LOG_INFO("misc", "Weekly loot lockouts reset for all characters.");
+
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ALL_LOOT_LOCKOUTS);
+    CharacterDatabase.Execute(stmt);
+
+    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+        if (Player* player = itr->second->GetPlayer())
+            player->ClearLootLockouts();
 }
 
 void World::LoadDBAllowedSecurityLevel()

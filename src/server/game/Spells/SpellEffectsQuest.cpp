@@ -87,6 +87,11 @@ void Spell::EffectQuestComplete(SpellEffIndex effIndex)
 
     if (!unitTarget || unitTarget->GetTypeId() != TypeID::TYPEID_PLAYER)
         return;
+
+    // world boss bonus rolls also name a tracking quest; the weekly bonus roll lockout does its job (alexkulya)
+    if (m_spellInfo->HasEffect(SPELL_EFFECT_BONUS_ROLL))
+        return;
+
     Player* player = unitTarget->ToPlayer();
 
     uint32 questId = m_spellInfo->Effects[effIndex].MiscValue;

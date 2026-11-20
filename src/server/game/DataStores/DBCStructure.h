@@ -1877,6 +1877,34 @@ struct ItemRandomSuffixEntry
 //#define MAX_ITEM_SET_ITEMS 17
 #define MAX_ITEM_SET_SPELLS 8
 
+// ItemSpec.dbc: which specializations an item with these stats suits
+struct ItemSpecEntry
+{
+    //uint32 Id;                                            // 0
+    uint32 MinLevel;                                        // 1
+    uint32 MaxLevel;                                        // 2
+    uint32 ItemType;                                        // 3 ItemSpecType
+    uint32 PrimaryStat;                                     // 4 ItemSpecStat
+    uint32 SecondaryStat;                                   // 5 ItemSpecStat, 26 = none
+    uint32 SpecializationId;                                // 6 ChrSpecialization.dbc
+};
+
+// ItemNameDescription.dbc: the line under an item's name ("Raid Finder", "Flexible", "Heroic"), keyed by item id
+struct ItemNameDescriptionEntry
+{
+    uint32 ItemId;                                          // 0
+    char* Description;                                      // 1
+    //uint32 Color;                                         // 2
+};
+
+// ItemSpecOverride.dbc: fixed specializations of single items
+struct ItemSpecOverrideEntry
+{
+    //uint32 Id;                                            // 0
+    uint32 ItemId;                                          // 1
+    uint32 SpecializationId;                                // 2 ChrSpecialization.dbc
+};
+
 struct ItemSetEntry
 {
     //uint32    id                                          // 0        m_ID

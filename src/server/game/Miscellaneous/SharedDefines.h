@@ -1069,6 +1069,7 @@ enum SpellEffects
     SPELL_EFFECT_180 = 180, // Unused (4.3.4)
     SPELL_EFFECT_REMOVE_TALENT = 181, // Eg: Tome of the Clear Mind
     SPELL_EFFECT_182 = 182,
+    SPELL_EFFECT_BONUS_ROLL = 189, // rolls on the loot of the bonus roll prompt (SPELL_AURA_BONUS_ROLL_TRIGGER) that triggers it
     SPELL_EFFECT_HEAL_BATTLEPET_PCT = 200,
     SPELL_EFFECT_BATTLE_PET_UNLOCK = 201,
     TOTAL_SPELL_EFFECTS = 214,

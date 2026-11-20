@@ -8,6 +8,7 @@
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
 #include "BattlePetMgr.h"
+#include "BonusLoot.h"
 #include "CellImpl.h"
 #include "Common.h"
 #include "Creature.h"
@@ -258,4 +259,50 @@ void Spell::EffectCastButtons(SpellEffIndex effIndex)
         TriggerCastFlags triggerFlags = TriggerCastFlags(TRIGGERED_IGNORE_GCD | TRIGGERED_IGNORE_CAST_IN_PROGRESS | TRIGGERED_CAST_DIRECTLY);
         m_caster->CastSpell(m_caster, spell_id, triggerFlags);
     }
+}
+
+// The roll the client casts when the player accepts a bonus roll prompt. Its spell carries one
+// effect per difficulty; the first one that finds a prompt rolls, the other effects of the cast do not.
+void Spell::EffectBonusRoll(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET || m_bonusRollGiven)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player || unitTarget != m_caster)
+        return;
+
+    AuraEffect const* prompt = nullptr;
+    for (AuraEffect const* aurEff : player->GetAuraEffectsByType(SPELL_AURA_BONUS_ROLL_TRIGGER))
+    {
+        if (aurEff->GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell == m_spellInfo->Id)
+        {
+            prompt = aurEff;
+            break;
+        }
+    }
+
+    if (!prompt)
+        return;
+
+    uint32 promptSpell = prompt->GetId();
+    uint8 difficulty = uint8(prompt->GetAmount());
+    BonusLootTemplate const* loot = Skyfire::BonusLoot::GetForPrompt(prompt->GetCasterGUID());
+
+    if (!loot || loot->Spell != promptSpell)
+    {
+        player->RemoveAurasDueToSpell(promptSpell, prompt->GetCasterGUID());
+        SF_LOG_ERROR("spells", "Spell::EffectBonusRoll: no bonus_loot_template row for prompt %u of player %s", promptSpell, player->GetName().c_str());
+        return;
+    }
+
+    // prompts of bosses that share a currency can outnumber the currency: a roll without it keeps its prompt
+    if (!player->HasCurrency(loot->Currency, 1))
+        return;
+
+    // the boss's prompt goes
+    player->RemoveAurasDueToSpell(promptSpell, prompt->GetCasterGUID());
+    m_bonusRollGiven = true;
+
+    Skyfire::BonusLoot::Roll(player, *loot, difficulty);
 }

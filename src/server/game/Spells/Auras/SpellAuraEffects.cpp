@@ -443,7 +443,7 @@ pAuraEffectHandler AuraEffectHandler[TOTAL_AURAS] =
     &AuraEffect::HandleUnused,                                    //391 unused (5.4.2)
     &AuraEffect::HandleUnused,                                    //392 unused (5.4.2)
     &AuraEffect::HandleNULL,                                      //393 SPELL_AURA_393
-    &AuraEffect::HandleNULL,                                      //394 SPELL_AURA_394
+    &AuraEffect::HandleNoImmediateEffect,                         //394 SPELL_AURA_BONUS_ROLL_TRIGGER implemented in Spell::EffectBonusRoll
     &AuraEffect::HandleAreaTrigger,                               //395 SPELL_AURA_AREA_TRIGGER
     &AuraEffect::HandleNULL,                                      //396 SPELL_AURA_396
     &AuraEffect::HandleNULL,                                      //397 SPELL_AURA_397

@@ -23,6 +23,8 @@
 #include "CreatureAI.h"
 #include "DatabaseEnv.h"
 #include "Player.h"
+#include "KillReward.h"
+#include "ItemSpec.h"
 //#include "DBCStructure.h"
 #include "DB2Stores.h"
 #include "DisableMgr.h"
@@ -5246,6 +5248,10 @@ void Player::DeleteFromDB(uint64 playerguid, uint32 accountId, bool updateRealmC
             stmt->setUInt32(0, guid);
             trans->Append(stmt);
 
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_LOOT_LOCKOUTS);
+            stmt->setUInt32(0, guid);
+            trans->Append(stmt);
+
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_PLAYER_BGDATA);
             stmt->setUInt32(0, guid);
             trans->Append(stmt);
@@ -9668,6 +9674,9 @@ void Player::SendLoot(uint64 guid, LootType loot_type, bool isAoE)
 
                 loot->FillLoot(lootid, LootTemplates_Gameobject, this, !groupRules, false, go->GetLootMode());
 
+                if (go->GetGOInfo()->type == GAMEOBJECT_TYPE_CHEST)
+                    Skyfire::KillReward::RewardChestOpen(this, go);
+
                 // get next RR player (for next loot)
                 if (groupRules)
                     group->UpdateLooterGuid(go);
@@ -12594,6 +12603,7 @@ bool Player::LoadFromDB(uint32 guid, SQLQueryHolder* holder)
     _LoadBoundInstances(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_BOUND_INSTANCES));
     _LoadInstanceTimeRestrictions(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_INSTANCE_LOCK_TIMES));
     _LoadBGData(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_BG_DATA));
+    _LoadLootLockouts(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_LOOT_LOCKOUTS));
     if (PreparedQueryResult result = holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_DEATH_GATE_RETURN))
     {
         Field* fields = result->Fetch();
@@ -20406,6 +20416,11 @@ bool Player::GetsRecruitAFriendBonus(bool forXP)
 
 void Player::RewardPlayerAndGroupAtKill(Unit* victim, bool isBattleGround)
 {
+    // isBattleGround is only set for player kills; a creature kill on a battleground map is caught by the map
+    if (!isBattleGround && !GetMap()->IsBattlegroundOrArena())
+        if (Creature* creature = victim->ToCreature())
+            Skyfire::KillReward::Reward(this, creature);
+
     KillRewarder(this, victim, isBattleGround).Reward();
 }
 
@@ -21338,6 +21353,23 @@ void Player::StoreLootItem(uint8 lootSlot, Loot* loot, uint64 lootGuid)
     QuestItem* ffaitem = NULL;
     QuestItem* conditem = NULL;
 
+    if (LootCurrency* currency = loot->CurrencyInSlot(lootSlot, this))
+    {
+        CurrencyTypesEntry const* currencyEntry = sCurrencyTypesStore.LookupEntry(currency->id);
+        if (!currencyEntry)
+        {
+            currency->lootedBy.insert(GetGUIDLow());
+            return;
+        }
+
+        uint32 precision = (currencyEntry->Flags & CURRENCY_FLAG_HIGH_PRECISION) ? CURRENCY_PRECISION : 1;
+        ModifyCurrency(currency->id, int32(currency->count * precision));
+
+        currency->lootedBy.insert(GetGUIDLow());
+        SendNotifyLootItemRemoved(lootSlot, loot->GetNotifyGUID(lootGuid, this));
+        return;
+    }
+
     LootItem* item = loot->LootItemInSlot(lootSlot, this, &qitem, &ffaitem, &conditem);
 
     if (!item)
@@ -22195,6 +22227,43 @@ void Player::_SaveEquipmentSets(SQLTransaction& trans)
                 break;
         }
     }
+}
+
+void Player::_LoadLootLockouts(PreparedQueryResult result)
+{
+    m_lootLockouts.Clear();
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+        //       0      1           2
+        // SELECT entry, difficulty, type FROM character_loot_lockout WHERE guid = ?
+        uint8 type = fields[2].GetUInt8();
+        if (type >= uint8(LootLockoutType::Max))
+        {
+            SF_LOG_ERROR("entities.player", "Player::_LoadLootLockouts: player %s (GUID: %u) has a loot lockout of unknown type %u, skipped.", GetName().c_str(), GetGUIDLow(), type);
+            continue;
+        }
+
+        m_lootLockouts.Add(LootLockoutType(type), fields[0].GetUInt32(), fields[1].GetUInt8());
+    }
+    while (result->NextRow());
+}
+
+bool Player::AddLootLockout(LootLockoutType type, uint32 entry, uint8 difficulty)
+{
+    if (!m_lootLockouts.Add(type, entry, difficulty))
+        return false;
+
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_LOOT_LOCKOUT);
+    stmt->setUInt32(0, GetGUIDLow());
+    stmt->setUInt32(1, entry);
+    stmt->setUInt8(2, difficulty);
+    stmt->setUInt8(3, uint8(type));
+    CharacterDatabase.Execute(stmt);
+    return true;
 }
 
 void Player::_SaveDeathGateReturn(SQLTransaction& trans)
@@ -24726,6 +24795,65 @@ void Player::SendDeclineGuildInvitation(std::string declinerName, bool autoDecli
     data.WriteString(declinerName);
     data << (int32)0;
     GetSession()->SendPacket(&data);
+}
+
+bool Player::IsItemFitToSpecialization(ItemTemplate const* proto) const
+{
+    if (!proto)
+        return false;
+
+    if ((proto->Flags2 & ITEM_FLAGS_EXTRA_HORDE_ONLY) && GetTeam() != HORDE)
+        return false;
+
+    if ((proto->Flags2 & ITEM_FLAGS_EXTRA_ALLIANCE_ONLY) && GetTeam() != ALLIANCE)
+        return false;
+
+    if (!(proto->AllowableClass & getClassMask()) || !(proto->AllowableRace & getRaceMask()))
+        return false;
+
+    // armor type only: a necklace or shirt in the same slot range has no armor type to match
+    if (proto->Class == ITEM_CLASS_ARMOR && proto->SubClass >= ITEM_SUBCLASS_ARMOR_CLOTH && proto->SubClass <= ITEM_SUBCLASS_ARMOR_PLATE
+        && ((proto->InventoryType >= INVTYPE_HEAD && proto->InventoryType <= INVTYPE_HANDS) || proto->InventoryType == INVTYPE_ROBE) && getLevel() >= 40)
+    {
+        uint32 armor = ITEM_SUBCLASS_ARMOR_CLOTH;
+        switch (getClass())
+        {
+            case CLASS_WARRIOR:
+            case CLASS_PALADIN:
+            case CLASS_DEATH_KNIGHT:    armor = ITEM_SUBCLASS_ARMOR_PLATE; break;
+            case CLASS_HUNTER:
+            case CLASS_SHAMAN:          armor = ITEM_SUBCLASS_ARMOR_MAIL; break;
+            case CLASS_ROGUE:
+            case CLASS_MONK:
+            case CLASS_DRUID:           armor = ITEM_SUBCLASS_ARMOR_LEATHER; break;
+            default:                    break;
+        }
+
+        if (proto->SubClass != armor)
+            return false;
+    }
+
+    if (uint32 skill = Item::GetSkill(proto))
+        if (!HasSkill(skill))
+            return false;
+
+    // alexkulya lets this flag through every spec, after the client's Lua check; its meaning is unverified
+    if (proto->Flags & ITEM_FLAG_UNK22)
+        return true;
+
+    std::set<uint32> specs = Skyfire::ItemSpec::GetItemSpecializations(proto, getLevel());
+    if (specs.empty())
+        return true;
+
+    uint32 spec = GetLootSpecialization();
+    if (!spec)
+        spec = GetTalentSpecialization(GetActiveSpec());
+
+    // no specialization chosen yet (below level 10, or just reset): nothing to restrict by
+    if (!spec)
+        return true;
+
+    return specs.count(spec) != 0;
 }
 
 void Player::SetLootSpecialization(uint32 specialization)
