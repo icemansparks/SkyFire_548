@@ -180,7 +180,8 @@ void Skyfire::BonusLoot::GrantPrompt(Player* player, BonusLootTemplate const& lo
         if (spellInfo->Effects[i].IsAura(SPELL_AURA_BONUS_ROLL_TRIGGER))
             amounts[i] = difficulty;
 
-    if (Aura* aura = Aura::TryRefreshStackOrCreate(spellInfo, MAX_EFFECT_MASK, player, source->ToUnit(), amounts, nullptr, source->GetGUID()))
+    // a new aura, never a refresh (checked above); the refresh path needs a unit caster, and a chest is none
+    if (Aura* aura = Aura::TryCreate(spellInfo, MAX_EFFECT_MASK, player, source->ToUnit(), amounts, nullptr, source->GetGUID()))
         aura->ApplyForTargets();
 }
 
