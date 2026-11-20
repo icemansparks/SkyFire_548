@@ -11,6 +11,8 @@ namespace
 {
     using Skyfire::KillReward::CurrencyRowMatchesDifficulty;
     using Skyfire::KillReward::DifficultyPaysKillCurrency;
+    using Skyfire::KillReward::DifficultyUsesPersonalLoot;
+    using Skyfire::KillReward::PersonalLootChance;
 
     // DifficultyID values of 5.4.8 (DBCEnums.h)
     constexpr std::uint8_t NONE = 0;
@@ -69,6 +71,26 @@ namespace
                 && DifficultyPaysKillCurrency(FLEX),
             "Raid finder should pay no currency on kill; other difficulties should");
     }
+
+    bool TestPersonalLootDifficulties()
+    {
+        return Expect(DifficultyUsesPersonalLoot(NONE, false)
+                && DifficultyUsesPersonalLoot(RAID_FINDER, true)
+                && DifficultyUsesPersonalLoot(FLEX, true)
+                && !DifficultyUsesPersonalLoot(RAID_10_NORMAL, true)
+                && !DifficultyUsesPersonalLoot(NONE, true)
+                && !DifficultyUsesPersonalLoot(DUNGEON_HEROIC, true),
+            "Personal loot should apply to open world bosses, raid finder and flex only");
+    }
+
+    bool TestFlexChanceGrowsAboveTen()
+    {
+        return Expect(PersonalLootChance(50.0f, FLEX, 10) == 50.0f
+                && PersonalLootChance(50.0f, FLEX, 25) == 65.0f
+                && PersonalLootChance(50.0f, RAID_FINDER, 25) == 50.0f
+                && PersonalLootChance(50.0f, NONE, 40) == 50.0f,
+            "Flex should add one point per player above ten; other difficulties use the configured chance");
+    }
 }
 
 int main()
@@ -79,5 +101,7 @@ int main()
     ok &= TestMultiBitMask();
     ok &= TestDifficultyOutsideMask();
     ok &= TestRaidFinderPaysNothing();
+    ok &= TestPersonalLootDifficulties();
+    ok &= TestFlexChanceGrowsAboveTen();
     return ok ? 0 : 1;
 }

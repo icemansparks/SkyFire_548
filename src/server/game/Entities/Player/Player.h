@@ -1650,7 +1650,7 @@ public:
 
     // Weekly loot lockouts: entry is the base creature entry, difficulty the DifficultyID of the kill.
     bool HasLootLockout(LootLockoutType type, uint32 entry, uint8 difficulty) const { return m_lootLockouts.Has(type, entry, difficulty); }
-    // Stores the lockout at once, so a crash or relog cannot hand out the same reward twice. Returns false if already locked.
+    // Queues the lockout write at once and remembers it in memory, so a relog cannot hand out the same reward twice. Returns false if already locked.
     bool AddLootLockout(LootLockoutType type, uint32 entry, uint8 difficulty);
     // Weekly reset of an online character; World::ResetLootLockouts empties the table.
     void ClearLootLockouts() { m_lootLockouts.Clear(); }

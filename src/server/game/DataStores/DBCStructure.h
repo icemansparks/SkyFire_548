@@ -1889,6 +1889,14 @@ struct ItemSpecEntry
     uint32 SpecializationId;                                // 6 ChrSpecialization.dbc
 };
 
+// ItemNameDescription.dbc: the line under an item's name ("Raid Finder", "Flexible", "Heroic"), keyed by item id
+struct ItemNameDescriptionEntry
+{
+    uint32 ItemId;                                          // 0
+    char* Description;                                      // 1
+    //uint32 Color;                                         // 2
+};
+
 // ItemSpecOverride.dbc: fixed specializations of single items
 struct ItemSpecOverrideEntry
 {

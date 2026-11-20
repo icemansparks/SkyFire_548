@@ -1364,6 +1364,13 @@ void World::LoadConfigSettings(bool reload)
     SetFloatConfig(WorldFloatConfigs::CONFIG_STATS_LIMITS_BLOCK, sConfigMgr->GetFloatDefault("Stats.Limits.Block", 95.0f));
     SetFloatConfig(WorldFloatConfigs::CONFIG_STATS_LIMITS_CRIT, sConfigMgr->GetFloatDefault("Stats.Limits.Crit", 95.0f));
 
+    SetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE, sConfigMgr->GetFloatDefault("PersonalLoot.Chance", 50.0f));
+    if (GetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE) < 0.0f || GetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE) > 100.0f)
+    {
+        SF_LOG_ERROR("server.loading", "PersonalLoot.Chance (%f) must be between 0 and 100. Using 50 instead.", GetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE));
+        SetFloatConfig(WorldFloatConfigs::CONFIG_PERSONAL_LOOT_CHANCE, 50.0f);
+    }
+
     //packet spoof punishment
     setIntConfig(WorldIntConfigs::CONFIG_PACKET_SPOOF_POLICY, sConfigMgr->GetIntDefault("PacketSpoof.Policy", (uint32)WorldSession::DosProtection::POLICY_KICK));
     setIntConfig(WorldIntConfigs::CONFIG_PACKET_SPOOF_BANMODE, sConfigMgr->GetIntDefault("PacketSpoof.BanMode", (uint32)BAN_ACCOUNT));
@@ -1738,6 +1745,9 @@ void World::SetInitialWorldSettings()
 
     SF_LOG_INFO("server.loading", "Loading creature kill currency...");
     Skyfire::KillReward::LoadCreatureLootCurrency();          // must be after LoadCreatureTemplates()
+
+    SF_LOG_INFO("server.loading", "Loading personal loot...");
+    Skyfire::KillReward::LoadPersonalLoot();                  // must be after LoadItemTemplates() and LoadQuests()
 
     SF_LOG_INFO("server.loading", "Loading Skill Discovery Table...");
     LoadSkillDiscoveryTable();

@@ -23,15 +23,31 @@ struct CreatureLootCurrency
 
 typedef std::vector<CreatureLootCurrency> CreatureLootCurrencyList;
 
-// Rewards a creature kill gives beyond experience and corpse loot.
-// Today: currency on kill. Personal loot and the bonus roll trigger extend Reward().
+// One row of `personal_loot_template` with its `personal_loot_item` rows.
+struct PersonalLootTemplate
+{
+    uint32 MoneyBag = 0;            // gold bag when the roll fails or no item fits
+    uint32 MoneyBagFlex = 0;        // flex gold bag, 0 = MoneyBag
+    uint32 QuestTracker = 0;        // weekly tracking quest marked done on receipt
+    std::vector<uint32> Items;
+};
+
+// Rewards a creature kill gives beyond experience: currency on kill and personal loot.
+// The bonus roll trigger extends Reward().
 namespace Skyfire::KillReward
 {
     void LoadCreatureLootCurrency();
     CreatureLootCurrencyList const* GetCreatureLootCurrency(uint32 entry);
 
+    void LoadPersonalLoot();
+    PersonalLootTemplate const* GetPersonalLoot(uint32 entry);
+
+    // True when this kill pays personal loot instead of corpse loot (world boss in the open world, raid finder, flex).
+    bool UsesPersonalLoot(Creature const* creature);
+
     // Called once per creature kill with the player credited for it (the loot recipient).
-    // Rewards each group member in reward range, or the killer alone.
+    // Rewards each group member in reward range, or the killer alone; on a world boss with
+    // personal loot also every other player in reward range who fought it.
     void Reward(Player* killer, Creature* victim);
 }
 
