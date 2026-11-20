@@ -907,3 +907,13 @@ target_include_directories(loot_lockout_tests PRIVATE
 )
 
 add_test(NAME loot_lockout_tests COMMAND loot_lockout_tests)
+
+add_executable(bonus_loot_rules_tests
+  BonusLootRulesTests.cpp
+)
+
+target_include_directories(bonus_loot_rules_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/src/server/game/Loot
+)
+
+add_test(NAME bonus_loot_rules_tests COMMAND bonus_loot_rules_tests)
