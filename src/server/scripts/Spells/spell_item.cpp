@@ -2747,6 +2747,53 @@ class spell_item_swarmkeepers_speed : public SpellScriptLoader
         }
 };
 
+// 138728 - Change of Tactics, 146310 - Restless Agility, 146317 - Restless Spirit
+class spell_item_restless_stat_trinket : public SpellScriptLoader
+{
+    public:
+        spell_item_restless_stat_trinket() : SpellScriptLoader("spell_item_restless_stat_trinket") { }
+
+        class spell_item_restless_stat_trinket_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_restless_stat_trinket_AuraScript);
+
+            // The buff starts at full stacks and loses one stack per tick of effect 1
+            void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                // A fresh cast still has its full duration; an aura loaded at login has run down
+                // and keeps its saved stack count
+                if (GetAura()->GetDuration() != GetAura()->GetMaxDuration())
+                    return;
+
+                GetAura()->SetStackAmount(GetSpellInfo()->StackAmount);
+            }
+
+            // A re-proc while the buff is up adds one stack and refreshes the duration; it
+            // starts over at full stacks like a fresh cast
+            void HandleRefresh(uint8& /*charges*/)
+            {
+                GetAura()->SetStackAmount(GetSpellInfo()->StackAmount);
+            }
+
+            void HandleTick(AuraEffect const* /*aurEff*/)
+            {
+                GetAura()->ModStackAmount(-1);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnRefreshCharges += AuraRefreshChargesFn(spell_item_restless_stat_trinket_AuraScript::HandleRefresh);
+                AfterEffectApply += AuraEffectApplyFn(spell_item_restless_stat_trinket_AuraScript::HandleApply, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY, AURA_EFFECT_HANDLE_REAL);
+                OnEffectPeriodic += AuraEffectPeriodicFn(spell_item_restless_stat_trinket_AuraScript::HandleTick, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_restless_stat_trinket_AuraScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2819,4 +2866,5 @@ void AddSC_item_spell_scripts()
     new spell_item_party_grenade_eff();
     new spell_item_party_grenade();
     new spell_item_swarmkeepers_speed();
+    new spell_item_restless_stat_trinket();
 }
