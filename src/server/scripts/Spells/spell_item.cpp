@@ -2989,6 +2989,129 @@ class spell_jewelcrafting_daily_quests_cata : public SpellScriptLoader
         }
 };
 
+enum WormholeGeneratorPandaria
+{
+    SPELL_WORMHOLE_PANDARIA_ISLE_OF_RECKONING = 126756,
+    SPELL_WORMHOLE_PANDARIA_WHITEPETAL_LAKE   = 126764
+};
+
+// 126755 - Wormhole: Pandaria
+class spell_item_wormhole_pandaria : public SpellScriptLoader
+{
+    public:
+        spell_item_wormhole_pandaria() : SpellScriptLoader("spell_item_wormhole_pandaria") { }
+
+        class spell_item_wormhole_pandaria_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_wormhole_pandaria_SpellScript);
+
+            // The nine destination spells have consecutive ids
+            void HandleTeleport(SpellEffIndex effIndex)
+            {
+                PreventHitDefaultEffect(effIndex);
+                uint32 spellId = urand(SPELL_WORMHOLE_PANDARIA_ISLE_OF_RECKONING, SPELL_WORMHOLE_PANDARIA_WHITEPETAL_LAKE);
+                GetCaster()->CastSpell(GetHitUnit(), spellId, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_item_wormhole_pandaria_SpellScript::HandleTeleport, EFFECT_0, SPELL_EFFECT_DUMMY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_wormhole_pandaria_SpellScript();
+        }
+};
+
+// 105617 - Alchemist's Flask
+class spell_item_alchemists_flask : public SpellScriptLoader
+{
+    public:
+        spell_item_alchemists_flask() : SpellScriptLoader("spell_item_alchemists_flask") { }
+
+        class spell_item_alchemists_flask_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_alchemists_flask_SpellScript);
+
+            enum
+            {
+                SPELL_ENHANCED_STRENGTH  = 79638,
+                SPELL_ENHANCED_AGILITY   = 79639,
+                SPELL_ENHANCED_INTELLECT = 79640
+            };
+
+            // Buffs the highest of Strength, Agility and Intellect
+            void HandleCast()
+            {
+                Unit* caster = GetCaster();
+                float strength = caster->GetStat(STAT_STRENGTH);
+                float agility = caster->GetStat(STAT_AGILITY);
+                float intellect = caster->GetStat(STAT_INTELLECT);
+
+                uint32 buffId = SPELL_ENHANCED_STRENGTH;
+                float best = strength;
+                if (agility > best)
+                {
+                    buffId = SPELL_ENHANCED_AGILITY;
+                    best = agility;
+                }
+                if (intellect > best)
+                    buffId = SPELL_ENHANCED_INTELLECT;
+
+                caster->CastSpell(caster, buffId, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnCast += SpellCastFn(spell_item_alchemists_flask_SpellScript::HandleCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_alchemists_flask_SpellScript();
+        }
+};
+
+enum GhostlySkeletonKey
+{
+    QUEST_SO_YOU_WANT_TO_BE_A_BLACKSMITH_A = 32683,
+    QUEST_SO_YOU_WANT_TO_BE_A_BLACKSMITH_B = 32726,
+    NPC_GHOSTLY_SKELETON_KEY_CREDIT        = 70512
+};
+
+// 122633 - Ghostly Skeleton Key
+class spell_q32683_q32726_ghostly_skeleton_key : public SpellScriptLoader
+{
+    public:
+        spell_q32683_q32726_ghostly_skeleton_key() : SpellScriptLoader("spell_q32683_q32726_ghostly_skeleton_key") { }
+
+        class spell_q32683_q32726_ghostly_skeleton_key_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_q32683_q32726_ghostly_skeleton_key_SpellScript);
+
+            void HandleCast()
+            {
+                if (Player* player = GetCaster()->ToPlayer())
+                    if (player->GetQuestStatus(QUEST_SO_YOU_WANT_TO_BE_A_BLACKSMITH_A) == QUEST_STATUS_INCOMPLETE ||
+                        player->GetQuestStatus(QUEST_SO_YOU_WANT_TO_BE_A_BLACKSMITH_B) == QUEST_STATUS_INCOMPLETE)
+                        player->KilledMonsterCredit(NPC_GHOSTLY_SKELETON_KEY_CREDIT);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnCast += SpellCastFn(spell_q32683_q32726_ghostly_skeleton_key_SpellScript::HandleCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_q32683_q32726_ghostly_skeleton_key_SpellScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -3066,4 +3189,7 @@ void AddSC_item_spell_scripts()
     new spell_learn_some_ingredient_and_its_uses();
     new spell_item_stardust_no_2();
     new spell_jewelcrafting_daily_quests_cata();
+    new spell_item_wormhole_pandaria();
+    new spell_item_alchemists_flask();
+    new spell_q32683_q32726_ghostly_skeleton_key();
 }
