@@ -2526,6 +2526,134 @@ public:
     }
 };
 
+// 118333 - Dancing Steel, 142531 - Bloody Dancing Steel
+class spell_ench_dancing_steel : public SpellScriptLoader
+{
+    public:
+        spell_ench_dancing_steel() : SpellScriptLoader("spell_ench_dancing_steel") { }
+
+        class spell_ench_dancing_steel_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_ench_dancing_steel_AuraScript);
+
+            enum
+            {
+                SPELL_DANCING_STEEL        = 118333,
+                SPELL_DANCING_STEEL_BUFF   = 120032,
+                SPELL_BLOODY_DANCING_BUFF  = 142530
+            };
+
+            bool Load() OVERRIDE
+            {
+                return GetUnitOwner()->GetTypeId() == TypeID::TYPEID_PLAYER;
+            }
+
+            void HandleProc(ProcEventInfo& /*eventInfo*/)
+            {
+                PreventDefaultAction();
+
+                Player* owner = GetUnitOwner()->ToPlayer();
+                Item* castItem = owner->GetItemByGuid(GetAura()->GetCastItemGUID());
+                if (!castItem)
+                    return;
+
+                uint32 buffId = GetId() == SPELL_DANCING_STEEL ? SPELL_DANCING_STEEL_BUFF : SPELL_BLOODY_DANCING_BUFF;
+                float agility = owner->GetStat(STAT_AGILITY);
+                float strength = owner->GetStat(STAT_STRENGTH);
+
+                owner->CastSpell(owner, buffId, true, castItem);
+
+                // The buff has one Strength and one Agility effect: keep the bonus of the higher stat only
+                if (Aura* buff = owner->GetAura(buffId, owner->GetGUID(), castItem->GetGUID()))
+                {
+                    int32 weakerStat = agility > strength ? STAT_STRENGTH : STAT_AGILITY;
+                    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                        if (AuraEffect* effect = buff->GetEffect(i))
+                            if (effect->GetAuraType() == SPELL_AURA_MOD_STAT && effect->GetMiscValue() == weakerStat)
+                                effect->ChangeAmount(0);
+                }
+            }
+
+            void Register() OVERRIDE
+            {
+                OnProc += AuraProcFn(spell_ench_dancing_steel_AuraScript::HandleProc);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_ench_dancing_steel_AuraScript();
+        }
+};
+
+// 120033 - Jade Spirit (passive), 142536 - Spirit of Conquest (passive)
+class spell_ench_jade_spirit_passive : public SpellScriptLoader
+{
+    public:
+        spell_ench_jade_spirit_passive() : SpellScriptLoader("spell_ench_jade_spirit_passive") { }
+
+        class spell_ench_jade_spirit_passive_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_ench_jade_spirit_passive_AuraScript);
+
+            enum
+            {
+                SPELL_JADE_SPIRIT_PASSIVE  = 120033,
+                SPELL_JADE_SPIRIT          = 104993,
+                SPELL_SPIRIT_OF_CONQUEST   = 142535
+            };
+
+            void HandleProc(ProcEventInfo& /*eventInfo*/)
+            {
+                PreventDefaultAction();
+                uint32 buffId = GetId() == SPELL_JADE_SPIRIT_PASSIVE ? SPELL_JADE_SPIRIT : SPELL_SPIRIT_OF_CONQUEST;
+                GetUnitOwner()->CastSpell(GetUnitOwner(), buffId, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnProc += AuraProcFn(spell_ench_jade_spirit_passive_AuraScript::HandleProc);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_ench_jade_spirit_passive_AuraScript();
+        }
+};
+
+// 104993 - Jade Spirit, 142535 - Spirit of Conquest
+class spell_ench_jade_spirit : public SpellScriptLoader
+{
+    public:
+        spell_ench_jade_spirit() : SpellScriptLoader("spell_ench_jade_spirit") { }
+
+        class spell_ench_jade_spirit_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_ench_jade_spirit_AuraScript);
+
+            // The Spirit bonus (effect 1) only applies while the owner is at or below 25 percent mana;
+            // an owner without a mana pool never qualifies
+            void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& /*canBeRecalculated*/)
+            {
+                Unit* owner = GetUnitOwner();
+                uint32 maxMana = owner->GetMaxPower(POWER_MANA);
+                if (!maxMana || owner->GetPower(POWER_MANA) > CalculatePct(maxMana, 25))
+                    amount = 0;
+            }
+
+            void Register() OVERRIDE
+            {
+                DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_ench_jade_spirit_AuraScript::CalculateAmount, EFFECT_1, SPELL_AURA_MOD_STAT);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_ench_jade_spirit_AuraScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2593,4 +2721,7 @@ void AddSC_item_spell_scripts()
     new spell_item_chicken_cover();
     new spell_item_muisek_vessel();
     new spell_item_greatmothers_soulcatcher();
+    new spell_ench_dancing_steel();
+    new spell_ench_jade_spirit_passive();
+    new spell_ench_jade_spirit();
 }
