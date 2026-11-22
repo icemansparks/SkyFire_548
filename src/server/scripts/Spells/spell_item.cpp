@@ -2793,6 +2793,202 @@ class spell_ench_synapse_springs : public SpellScriptLoader
         }
 };
 
+// 143743 - Chief Engineer Jard's Journal
+class spell_chief_engineer_jards_journal : public SpellScriptLoader
+{
+    public:
+        spell_chief_engineer_jards_journal() : SpellScriptLoader("spell_chief_engineer_jards_journal") { }
+
+        class spell_chief_engineer_jards_journal_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_chief_engineer_jards_journal_SpellScript);
+
+            void HandleCast()
+            {
+                if (Player* player = GetCaster()->ToPlayer())
+                {
+                    player->learnSpell(139176, false); // Jard's Peculiar Energy Source
+                    player->learnSpell(139192, false); // Sky Golem
+                    player->learnSpell(139197, false); // Advanced Refrigeration Unit
+                    player->learnSpell(139196, false); // Pierre
+                    player->learnSpell(143714, false); // Rascal-Bot
+                }
+            }
+
+            void Register() OVERRIDE
+            {
+                OnCast += SpellCastFn(spell_chief_engineer_jards_journal_SpellScript::HandleCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_chief_engineer_jards_journal_SpellScript();
+        }
+};
+
+// 143644 - Hardened Magnificent Hide and Its Uses
+// 143626 - Celestial Cloth and Its Uses
+// 143646 - Balanced Trillium Ingot and Its Uses
+class spell_learn_some_ingredient_and_its_uses : public SpellScriptLoader
+{
+    public:
+        spell_learn_some_ingredient_and_its_uses() : SpellScriptLoader("spell_learn_some_ingredient_and_its_uses") { }
+
+        class spell_learn_some_ingredient_and_its_uses_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_learn_some_ingredient_and_its_uses_SpellScript);
+
+            void HandleCast()
+            {
+                Player* player = GetCaster()->ToPlayer();
+                if (!player)
+                    return;
+
+                uint32 spellId = 0;
+                switch (GetSpellInfo()->Id)
+                {
+                    case 143644: spellId = 142976; break;
+                    case 143626: spellId = 143011; break;
+                    case 143646: spellId = 143255; break;
+                    default:
+                        return;
+                }
+
+                player->learnSpell(spellId, false);
+
+                // learn random explicit discovery recipe (if any)
+                if (uint32 recipe = GetExplicitDiscoverySpell(spellId, player))
+                    player->learnSpell(recipe, false);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnCast += SpellCastFn(spell_learn_some_ingredient_and_its_uses_SpellScript::HandleCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_learn_some_ingredient_and_its_uses_SpellScript();
+        }
+};
+
+enum StardustNo2
+{
+    QUEST_THE_LATEST_FASHION_ALLIANCE = 25157,
+    QUEST_THE_LATEST_FASHION_HORDE    = 25159,
+    NPC_THE_LATEST_FASHION_CREDIT     = 39237
+};
+
+// 73667 - Stardust No. 2
+class spell_item_stardust_no_2 : public SpellScriptLoader
+{
+    public:
+        spell_item_stardust_no_2() : SpellScriptLoader("spell_item_stardust_no_2") { }
+
+        class spell_item_stardust_no_2_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_stardust_no_2_AuraScript);
+
+            void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                Unit* caster = GetCaster();
+                if (!caster)
+                    return;
+
+                if (Player* player = caster->ToPlayer())
+                    if (player->GetQuestStatus(QUEST_THE_LATEST_FASHION_ALLIANCE) == QUEST_STATUS_INCOMPLETE ||
+                        player->GetQuestStatus(QUEST_THE_LATEST_FASHION_HORDE) == QUEST_STATUS_INCOMPLETE)
+                        player->KilledMonsterCredit(NPC_THE_LATEST_FASHION_CREDIT, 0);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectApply += AuraEffectApplyFn(spell_item_stardust_no_2_AuraScript::OnApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_stardust_no_2_AuraScript();
+        }
+};
+
+enum JewelcraftingDailyQuestsCata
+{
+    SPELL_SOLID_ZEPHYRITE                  = 73227,
+    SPELL_TIMELESS_NIGHTSTONE              = 73243,
+    SPELL_JAGGED_JASPER                    = 73274,
+
+    QUEST_NIBBLER_NO_ALLIANCE              = 25105,
+    QUEST_NIBBLER_NO_HORDE                 = 25158,
+    QUEST_A_PRESENT_FOR_LILA_ALLIANCE      = 25154,
+    QUEST_A_PRESENT_FOR_LILA_HORDE         = 25160,
+    QUEST_ORGEZONIANS_IN_THE_MOOD_ALLIANCE = 25155,
+    QUEST_ORGEZONIANS_IN_THE_MOOD_HORDE    = 25161,
+
+    NPC_NIBBLER_NO_CREDIT                  = 39221,
+    NPC_A_PRESENT_FOR_LILA_CREDIT          = 39222,
+    NPC_ORGEZONIANS_IN_THE_MOOD_CREDIT     = 39223
+};
+
+// 73227 - Solid Zephyrite, 73243 - Timeless Nightstone, 73274 - Jagged Jasper
+class spell_jewelcrafting_daily_quests_cata : public SpellScriptLoader
+{
+    public:
+        spell_jewelcrafting_daily_quests_cata() : SpellScriptLoader("spell_jewelcrafting_daily_quests_cata") { }
+
+        class spell_jewelcrafting_daily_quests_cata_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_jewelcrafting_daily_quests_cata_SpellScript);
+
+            void HandleCast()
+            {
+                Player* player = GetCaster()->ToPlayer();
+                if (!player)
+                    return;
+
+                uint32 allianceQuest = 0;
+                uint32 hordeQuest = 0;
+                uint32 credit = 0;
+                switch (GetSpellInfo()->Id)
+                {
+                    case SPELL_SOLID_ZEPHYRITE:
+                        allianceQuest = QUEST_NIBBLER_NO_ALLIANCE;
+                        hordeQuest = QUEST_NIBBLER_NO_HORDE;
+                        credit = NPC_NIBBLER_NO_CREDIT;
+                        break;
+                    case SPELL_JAGGED_JASPER:
+                        allianceQuest = QUEST_ORGEZONIANS_IN_THE_MOOD_ALLIANCE;
+                        hordeQuest = QUEST_ORGEZONIANS_IN_THE_MOOD_HORDE;
+                        credit = NPC_ORGEZONIANS_IN_THE_MOOD_CREDIT;
+                        break;
+                    case SPELL_TIMELESS_NIGHTSTONE:
+                        allianceQuest = QUEST_A_PRESENT_FOR_LILA_ALLIANCE;
+                        hordeQuest = QUEST_A_PRESENT_FOR_LILA_HORDE;
+                        credit = NPC_A_PRESENT_FOR_LILA_CREDIT;
+                        break;
+                    default:
+                        return;
+                }
+
+                if (player->GetQuestStatus(allianceQuest) == QUEST_STATUS_INCOMPLETE || player->GetQuestStatus(hordeQuest) == QUEST_STATUS_INCOMPLETE)
+                    player->KilledMonsterCredit(credit);
+            }
+
+            void Register() OVERRIDE
+            {
+                AfterCast += SpellCastFn(spell_jewelcrafting_daily_quests_cata_SpellScript::HandleCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_jewelcrafting_daily_quests_cata_SpellScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2866,4 +3062,8 @@ void AddSC_item_spell_scripts()
     new spell_ench_windsong();
     new spell_ench_colossus();
     new spell_ench_synapse_springs();
+    new spell_chief_engineer_jards_journal();
+    new spell_learn_some_ingredient_and_its_uses();
+    new spell_item_stardust_no_2();
+    new spell_jewelcrafting_daily_quests_cata();
 }
