@@ -56,6 +56,10 @@ enum DataTypes
     DATA_SHA_PRISON_2           = 17,
     DATA_SHA_PRISON_3           = 18,
     DATA_CONTAINMENT_OVERRIDE   = 19,
+
+    // Taran Zhu
+    DATA_TARAN_ZHU_CACHE        = 20,
+    DATA_SNOWDRIFT_QUESTENDER   = 21,
 };
 
 enum CreaturesIds
@@ -83,6 +87,9 @@ enum CreaturesIds
     NPC_DESTROYING_SHA          = 56765,
     NPC_SHA_MANIFESTATION       = 58201,
     NPC_LESSER_VOLATILE_ENERGY  = 66652,
+
+    // Taran Zhu: Master Snowdrift waits hidden for the end of the dungeon to hand in the quest
+    NPC_SNOWDRIFT_QUESTENDER    = 64387,
 
     // Trash
     NPC_ARCHERY_FIRST           = 64549,
@@ -113,6 +120,8 @@ enum GameObjectIds
     GO_SHA_PRISON_2             = 212063,
     GO_SHA_PRISON_3             = 212064,
     GO_CONTAINMENT_OVERRIDE     = 213457,
+    GO_TARAN_ZHU_CACHE          = 213888,
+    GO_TARAN_ZHU_CACHE_H        = 213889,
 };
 
 enum Worldstates
@@ -122,6 +131,9 @@ enum Worldstates
 
 enum SharedSpells
 {
+    SPELL_HATE                  = 107085,
+    SPELL_HAZE_OF_HATE          = 107087,
+    SPELL_HAZE_OF_HATE_VISUAL   = 107217,
     SPELL_RESPECT               = 118918,
 };
 

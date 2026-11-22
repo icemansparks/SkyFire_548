@@ -67,6 +67,9 @@ class instance_shadopan_monastery : public InstanceMapScript
                 shaPrison2GUID       = 0;
                 shaPrison3GUID       = 0;
                 containmentOverrideGUID = 0;
+                snowdriftQuestenderGUID = 0;
+                taranZhuCacheGUID       = 0;
+                taranZhuCacheHGUID      = 0;
             }
 
             void OnCreatureCreate(Creature* creature) OVERRIDE
@@ -81,6 +84,15 @@ class instance_shadopan_monastery : public InstanceMapScript
                         break;
                     case NPC_SHA_VIOLENCE:
                         shaViolenceGUID = creature->GetGUID();
+                        break;
+                    case NPC_SNOWDRIFT_QUESTENDER:
+                        snowdriftQuestenderGUID = creature->GetGUID();
+                        // Hidden until Taran Zhu is done; a saved lockout with him done leaves Snowdrift standing for the quest.
+                        if (GetBossState(DATA_TARAN_ZHU) != DONE)
+                        {
+                            creature->RemoveFlag(UNIT_FIELD_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
+                            creature->SetVisible(false);
+                        }
                         break;
                     case NPC_TARAN_ZHU:
                         taranZhuGUID = creature->GetGUID();
@@ -144,6 +156,12 @@ class instance_shadopan_monastery : public InstanceMapScript
                     case GO_CONTAINMENT_OVERRIDE:
                         containmentOverrideGUID = go->GetGUID();
                         break;
+                    case GO_TARAN_ZHU_CACHE:
+                        taranZhuCacheGUID = go->GetGUID();
+                        break;
+                    case GO_TARAN_ZHU_CACHE_H:
+                        taranZhuCacheHGUID = go->GetGUID();
+                        break;
                     case GO_SNOWDRIFT_ENTRANCE:
                         snowdriftEntranceGUID = go->GetGUID();
                         break;
@@ -169,6 +187,22 @@ class instance_shadopan_monastery : public InstanceMapScript
                 // Snowdrift leaves his possessions behind: the normal or the heroic chest, by difficulty.
                 if (type == DATA_MASTER_SNOWDRIFT && state == DONE)
                     DoRespawnGameObject(instance->IsHeroic() ? snowdriftPossessionsHGUID : snowdriftPossessionsGUID, DAY);
+
+                // Taran Zhu: the Hate aura rides on every player during the fight and leaves with it; his stash appears when he is done.
+                if (type == DATA_TARAN_ZHU)
+                {
+                    if (state == IN_PROGRESS)
+                        DoAddAuraOnPlayers(SPELL_HATE);
+                    else
+                    {
+                        DoRemoveAurasDueToSpellOnPlayers(SPELL_HATE);
+                        DoRemoveAurasDueToSpellOnPlayers(SPELL_HAZE_OF_HATE);
+                        DoRemoveAurasDueToSpellOnPlayers(SPELL_HAZE_OF_HATE_VISUAL);
+
+                        if (state == DONE)
+                            DoRespawnGameObject(instance->IsHeroic() ? taranZhuCacheHGUID : taranZhuCacheGUID, DAY);
+                    }
+                }
 
                 return true;
             }
@@ -270,6 +304,10 @@ class instance_shadopan_monastery : public InstanceMapScript
                         return shaPrison3GUID;
                     case DATA_CONTAINMENT_OVERRIDE:
                         return containmentOverrideGUID;
+                    case DATA_SNOWDRIFT_QUESTENDER:
+                        return snowdriftQuestenderGUID;
+                    case DATA_TARAN_ZHU_CACHE:
+                        return instance->IsHeroic() ? taranZhuCacheHGUID : taranZhuCacheGUID;
                     case DATA_RANDOM_FIRST_POS:
                         return TakeRandomGuid(firstNovicePositions);
                     case DATA_RANDOM_SECOND_POS:
@@ -401,6 +439,9 @@ class instance_shadopan_monastery : public InstanceMapScript
             uint64 shaPrison2GUID;
             uint64 shaPrison3GUID;
             uint64 containmentOverrideGUID;
+            uint64 snowdriftQuestenderGUID;
+            uint64 taranZhuCacheGUID;
+            uint64 taranZhuCacheHGUID;
 
             uint32 iceArchersState;
             uint32 fireArchersState;
