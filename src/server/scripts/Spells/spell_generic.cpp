@@ -3765,6 +3765,250 @@ class spell_gen_override_display_power : public SpellScriptLoader
         }
 };
 
+// Stat chosen for the Pandaren food buffs: Stamina for tanks, Spirit for healers, else the highest of
+// Strength, Agility, Intellect and Spirit (Stamina is never picked by stat value)
+static Stats GetStatForFood(Player* target)
+{
+    switch (target->GetTalentSpecialization(target->GetActiveSpec()))
+    {
+        case SPEC_PALADIN_PROTECTION:
+        case SPEC_WARRIOR_PROTECTION:
+        case SPEC_DRUID_GUARDIAN:
+        case SPEC_DEATH_KNIGHT_BLOOD:
+        case SPEC_MONK_BREWMASTER:
+            return STAT_STAMINA;
+        case SPEC_PALADIN_HOLY:
+        case SPEC_DRUID_RESTORATION:
+        case SPEC_PRIEST_DISCIPLINE:
+        case SPEC_PRIEST_HOLY:
+        case SPEC_SHAMAN_RESTORATION:
+        case SPEC_MONK_MISTWEAVER:
+            return STAT_SPIRIT;
+        default:
+            break;
+    }
+
+    Stats best = STAT_STRENGTH;
+    for (Stats stat : { STAT_AGILITY, STAT_INTELLECT, STAT_SPIRIT })
+        if (target->GetStat(stat) > target->GetStat(best))
+            best = stat;
+    return best;
+}
+
+// 126532 - Banquet of the Grill, 126541 - Banquet of the Wok, 126542 - Banquet of the Pot,
+// 126543 - Banquet of the Steamer, 126544 - Banquet of the Oven, 126545 - Banquet of the Brew
+class spell_gen_banquet_of_the_x : public SpellScriptLoader
+{
+    public:
+        spell_gen_banquet_of_the_x() : SpellScriptLoader("spell_gen_banquet_of_the_x") { }
+
+        class spell_gen_banquet_of_the_x_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_banquet_of_the_x_SpellScript);
+
+            enum
+            {
+                SPELL_BANQUET_OF_THE_GRILL   = 126532,
+                SPELL_BANQUET_OF_THE_WOK     = 126541,
+                SPELL_BANQUET_OF_THE_POT     = 126542,
+                SPELL_BANQUET_OF_THE_STEAMER = 126543,
+                SPELL_BANQUET_OF_THE_OVEN    = 126544
+            };
+
+            // Each id is a Well Fed spell whose periodic effect applies the stat buff of that amount
+            uint32 GetBuffSpell(Stats stat)
+            {
+                uint32 banquet = GetSpellInfo()->Id;
+                switch (stat)
+                {
+                    case STAT_STRENGTH:
+                        return banquet == SPELL_BANQUET_OF_THE_GRILL ? 104284 : 104263;     // 275 or 250 Strength
+                    case STAT_AGILITY:
+                        return banquet == SPELL_BANQUET_OF_THE_WOK ? 104287 : 104286;       // 275 or 250 Agility
+                    case STAT_STAMINA:
+                        return banquet == SPELL_BANQUET_OF_THE_OVEN ? 104295 : 104294;      // 415 or 375 Stamina
+                    case STAT_INTELLECT:
+                        return banquet == SPELL_BANQUET_OF_THE_POT ? 104290 : 104266;       // 275 or 250 Intellect
+                    case STAT_SPIRIT:
+                        return banquet == SPELL_BANQUET_OF_THE_STEAMER ? 104292 : 104291;   // 275 or 250 Spirit
+                    default:
+                        return 0;
+                }
+            }
+
+            void HandleScriptEffect(SpellEffIndex /*effIndex*/)
+            {
+                Player* target = GetHitUnit() ? GetHitUnit()->ToPlayer() : NULL;
+                if (!target)
+                    return;
+
+                if (uint32 buffSpell = GetBuffSpell(GetStatForFood(target)))
+                    target->CastSpell(target, buffSpell, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_gen_banquet_of_the_x_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_banquet_of_the_x_SpellScript();
+        }
+};
+
+// 126535 - Food (250), 104922 - Food (275, Chao Cookies), 144961 - Food (300)
+class spell_gen_noodle_soup : public SpellScriptLoader
+{
+    public:
+        spell_gen_noodle_soup() : SpellScriptLoader("spell_gen_noodle_soup") { }
+
+        class spell_gen_noodle_soup_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_gen_noodle_soup_AuraScript);
+
+            // Well Fed stat buffs by amount: 250, 275, 300 (Stamina 375, 415, 450)
+            uint32 GetBuffSpell(Stats stat) const
+            {
+                static uint32 const buffs[MAX_STATS][3] =
+                {
+                    { 104267, 104271, 104272 },     // Strength
+                    { 104273, 104274, 104275 },     // Agility
+                    { 104281, 104282, 104283 },     // Stamina
+                    { 104264, 104276, 104277 },     // Intellect
+                    { 104278, 104279, 104280 }      // Spirit
+                };
+
+                uint32 tier;
+                switch (GetId())
+                {
+                    case 126535: tier = 0; break;
+                    case 104922: tier = 1; break;
+                    case 144961: tier = 2; break;
+                    default: return 0;
+                }
+                return buffs[stat][tier];
+            }
+
+            // The periodic effect's trigger spell is empty in the DBC (a fixed Intellect id sits in its base points)
+            void HandleTick(AuraEffect const* /*aurEff*/)
+            {
+                PreventDefaultAction();
+
+                Player* owner = GetUnitOwner()->ToPlayer();
+                if (!owner)
+                    return;
+
+                if (uint32 buffSpell = GetBuffSpell(GetStatForFood(owner)))
+                    owner->CastSpell(owner, buffSpell, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_noodle_soup_AuraScript::HandleTick, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_gen_noodle_soup_AuraScript();
+        }
+};
+
+// 58984 - Shadowmeld
+class spell_gen_shadowmeld : public SpellScriptLoader
+{
+    public:
+        spell_gen_shadowmeld() : SpellScriptLoader("spell_gen_shadowmeld") { }
+
+        class spell_gen_shadowmeld_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_shadowmeld_SpellScript);
+
+            void HandleHit(SpellEffIndex /*effIndex*/)
+            {
+                Unit* caster = GetCaster();
+                // Stay in combat when fighting a boss
+                if (!caster->GetInstanceScript() || !caster->GetInstanceScript()->IsEncounterInProgress())
+                    caster->CombatStop();
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_gen_shadowmeld_SpellScript::HandleHit, EFFECT_1, SPELL_EFFECT_DUMMY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_shadowmeld_SpellScript();
+        }
+};
+
+// 69041 - Rocket Barrage (Goblin racial)
+class spell_gen_rocket_barrage : public SpellScriptLoader
+{
+    public:
+        spell_gen_rocket_barrage() : SpellScriptLoader("spell_gen_rocket_barrage") { }
+
+        class spell_gen_rocket_barrage_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_rocket_barrage_SpellScript);
+
+            void HandleDamage(SpellEffIndex /*effIndex*/)
+            {
+                if (Player* caster = GetCaster()->ToPlayer())
+                {
+                    float ap = std::max(caster->GetTotalAttackPowerValue(WeaponAttackType::BASE_ATTACK), caster->GetTotalAttackPowerValue(WeaponAttackType::RANGED_ATTACK));
+                    SetHitDamage(1 + int32(0.25f * ap) + int32(0.429f * caster->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE)) + int32(caster->getLevel()) * 2);
+                }
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_gen_rocket_barrage_SpellScript::HandleDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_rocket_barrage_SpellScript();
+        }
+};
+
+// 43681 - Inactive
+class spell_gen_inactive : public SpellScriptLoader
+{
+    public:
+        spell_gen_inactive() : SpellScriptLoader("spell_gen_inactive") { }
+
+        class spell_gen_inactive_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_gen_inactive_AuraScript);
+
+            void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                // Leave the battleground when the Inactive timer runs out. In the 5.4.8 client data effect 0 is
+                // SPELL_AURA_MOD_CURRENCY_GAIN (aura 349), so the SPELL_AURA_DUMMY branch for 43681 in
+                // AuraEffect::HandleAuraDummy never runs and cannot do this
+                if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+                    if (Player* player = GetTarget()->ToPlayer())
+                        player->LeaveBattleground();
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectRemove += AuraEffectRemoveFn(spell_gen_inactive_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_MOD_CURRENCY_GAIN, AURA_EFFECT_HANDLE_REAL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_gen_inactive_AuraScript();
+        }
+};
+
 void AddSC_generic_spell_scripts()
 {
     new spell_gen_burn_constriction_totem();
@@ -3847,4 +4091,9 @@ void AddSC_generic_spell_scripts()
     new spell_gen_wg_water();
     new spell_gen_whisper_gulch_yogg_saron_whisper();
     new spell_gen_override_display_power();
+    new spell_gen_banquet_of_the_x();
+    new spell_gen_noodle_soup();
+    new spell_gen_shadowmeld();
+    new spell_gen_rocket_barrage();
+    new spell_gen_inactive();
 }
