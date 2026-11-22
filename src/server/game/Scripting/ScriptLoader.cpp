@@ -636,6 +636,7 @@ void AddSC_stormstout_brewery();
 void AddSC_npc_emperor_shaohao();
 void AddSC_boss_xuen();
 void AddSC_boss_chi_ji();
+void AddSC_boss_niuzao();
 // Valley of the four Winds
 void AddSC_valley_of_the_four_winds();
 
@@ -1358,6 +1359,7 @@ void AddPandariaScripts()
     AddSC_npc_emperor_shaohao();
     AddSC_boss_xuen();
     AddSC_boss_chi_ji();
+    AddSC_boss_niuzao();
     // Valley of the four Winds
     AddSC_valley_of_the_four_winds();
 #endif

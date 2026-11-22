@@ -56,7 +56,7 @@ float const COURT_FACING = 1.573f;
 
 // Celestials that have a script, in the order Shaohao may call them. Each celestial PR adds its
 // entry here: a celestial without a script would walk to the middle and stand there.
-uint32 const CelestialsInRotation[] = { NPC_XUEN, NPC_CHI_JI };
+uint32 const CelestialsInRotation[] = { NPC_XUEN, NPC_CHI_JI, NPC_NIUZAO };
 
 // Players whose class fights from range; stand-in for alexkulya's caster-spec lookup (SkyFire
 // has no talent role lookup).
