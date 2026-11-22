@@ -10,6 +10,7 @@ set(scripts_STAT_SRCS
   Pandaria/StormstoutBrewery/stormstout_brewery.cpp
   Pandaria/StormstoutBrewery/instance_stormstout_brewery.cpp
   Pandaria/StormstoutBrewery/stormstout_brewery.h
+  Pandaria/ShadopanMonastery/boss_gu_cloudstrike.cpp
   Pandaria/ShadopanMonastery/instance_shadopan_monastery.cpp
   Pandaria/ShadopanMonastery/shadopan_monastery.cpp
   Pandaria/ShadopanMonastery/shadopan_monastery.h

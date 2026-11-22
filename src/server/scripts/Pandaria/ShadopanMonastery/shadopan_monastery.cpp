@@ -22,11 +22,6 @@
 #include "ScriptedCreature.h"
 #include "shadopan_monastery.h"
 
-
-#include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "shadopan_monastery.h"
-
 class npc_shadopan_ambusher : public CreatureScript
 {
     public:

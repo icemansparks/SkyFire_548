@@ -22,6 +22,13 @@
 #include "CreatureTextMgr.h"
 #include "shadopan_monastery.h"
 
+static DoorData const doorData[] =
+{
+    { GO_CLOUDSTRIKE_ENTRANCE, DATA_GU_CLOUDSTRIKE, DOOR_TYPE_ROOM,    BOUNDARY_NONE },
+    { GO_CLOUDSTRIKE_EXIT,     DATA_GU_CLOUDSTRIKE, DOOR_TYPE_PASSAGE, BOUNDARY_NONE },
+    { 0,                       0,                   DOOR_TYPE_ROOM,    BOUNDARY_NONE }
+};
+
 class instance_shadopan_monastery : public InstanceMapScript
 {
     public:
@@ -32,6 +39,7 @@ class instance_shadopan_monastery : public InstanceMapScript
             instance_shadopan_monastery_InstanceScript(Map* map) : InstanceScript(map)
             {
                 SetBossNumber(EncounterCount);
+                LoadDoorData(doorData);
 
                 iceArchersState  = NOT_STARTED;
                 fireArchersState = NOT_STARTED;
@@ -39,6 +47,7 @@ class instance_shadopan_monastery : public InstanceMapScript
                 masterSnowdriftGUID  = 0;
                 shaViolenceGUID      = 0;
                 taranZhuGUID         = 0;
+                azureSerpentGUID     = 0;
             }
 
             void OnCreatureCreate(Creature* creature) OVERRIDE
@@ -57,11 +66,24 @@ class instance_shadopan_monastery : public InstanceMapScript
                     case NPC_TARAN_ZHU:
                         taranZhuGUID = creature->GetGUID();
                         break;
-                    case NPC_ARCHERY_TARGET:
-                        archeryTargetGuids.push_back(creature->GetGUID());
+                    case NPC_AZURE_SERPENT:
+                        azureSerpentGUID = creature->GetGUID();
                         break;
                     case NPC_HATEFUL_ESSENCE:
                         creature->SetDisplayId(41106);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            void OnGameObjectCreate(GameObject* go) OVERRIDE
+            {
+                switch (go->GetEntry())
+                {
+                    case GO_CLOUDSTRIKE_ENTRANCE:
+                    case GO_CLOUDSTRIKE_EXIT:
+                        AddDoor(go, true);
                         break;
                     default:
                         break;
@@ -111,10 +133,8 @@ class instance_shadopan_monastery : public InstanceMapScript
                         return shaViolenceGUID;
                     case DATA_TARAN_ZHU:
                         return taranZhuGUID;
-                    case NPC_ARCHERY_TARGET:
-                        if (archeryTargetGuids.empty())
-                            return 0;
-                        return Skyfire::Containers::SelectRandomContainerElement(archeryTargetGuids);
+                    case DATA_AZURE_SERPENT:
+                        return azureSerpentGUID;
                     default:
                         break;
                 }
@@ -203,7 +223,6 @@ class instance_shadopan_monastery : public InstanceMapScript
 
             std::list<uint64> firstArcherySet;
             std::list<uint64> secondArcherySet;
-            std::list<uint64> archeryTargetGuids;
 
             uint32 iceArchersState;
             uint32 fireArchersState;
@@ -211,6 +230,7 @@ class instance_shadopan_monastery : public InstanceMapScript
             uint64 masterSnowdriftGUID;
             uint64 shaViolenceGUID;
             uint64 taranZhuGUID;
+            uint64 azureSerpentGUID;
         };
 
         InstanceScript* GetInstanceScript(InstanceMap* map) const OVERRIDE

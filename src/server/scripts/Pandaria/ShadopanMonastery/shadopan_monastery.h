@@ -35,6 +35,7 @@ enum DataTypes
     DATA_TARAN_ZHU              = 3,
     DATA_ARCHERY                = 4,
     DATA_FIRE_ARCHERY           = 5,
+    DATA_AZURE_SERPENT          = 6,
 };
 
 enum CreaturesIds
@@ -43,6 +44,10 @@ enum CreaturesIds
     NPC_MASTER_SNOWDRIFT        = 56541,
     NPC_SHA_VIOLENCE            = 56719,
     NPC_TARAN_ZHU               = 56884,
+
+    // Gu Cloudstrike
+    NPC_AZURE_SERPENT           = 56754,
+    NPC_GUARDIAN                = 59741,
 
     // Trash
     NPC_ARCHERY_FIRST           = 64549,
@@ -55,6 +60,12 @@ enum CreaturesIds
     NPC_UNSTABLE_ENERGY         = 59811,
     NPC_TRAINING_TARGET         = 60162,
     NPC_HATEFUL_ESSENCE         = 58812,
+};
+
+enum GameObjectIds
+{
+    GO_CLOUDSTRIKE_ENTRANCE     = 210863,
+    GO_CLOUDSTRIKE_EXIT         = 210864,
 };
 
 Position const IceArchersPosition[3] =
