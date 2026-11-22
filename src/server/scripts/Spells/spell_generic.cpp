@@ -3765,6 +3765,58 @@ class spell_gen_override_display_power : public SpellScriptLoader
         }
 };
 
+// 140295 - Kirin Tor Beacon / 140300 - Sunreaver Beacon
+class spell_gen_isle_of_thunder_beacon : public SpellScriptLoader
+{
+    public:
+        spell_gen_isle_of_thunder_beacon() : SpellScriptLoader("spell_gen_isle_of_thunder_beacon") { }
+
+        class spell_gen_isle_of_thunder_beacon_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_isle_of_thunder_beacon_SpellScript);
+
+            enum
+            {
+                SPELL_KIRIN_TOR_BEACON         = 140295,
+                SPELL_SUNREAVER_BEACON         = 140300,
+                QUEST_THE_ASSAULT_ON_ZEB_TULA  = 32212,
+                QUEST_THE_ASSAULT_ON_SHAOLMARA = 32644
+            };
+
+            // Effect 0 teleports to the landing camp, effect 1 to the base taken in the assault quest.
+            // Each beacon works only for its own faction.
+            void HandleCast()
+            {
+                Player* player = GetCaster()->ToPlayer();
+                if (!player)
+                    return;
+
+                uint32 const spellId = GetSpellInfo()->Id;
+                uint32 questId;
+                if (spellId == SPELL_SUNREAVER_BEACON && player->GetTeam() == HORDE)
+                    questId = QUEST_THE_ASSAULT_ON_ZEB_TULA;
+                else if (spellId == SPELL_KIRIN_TOR_BEACON && player->GetTeam() == ALLIANCE)
+                    questId = QUEST_THE_ASSAULT_ON_SHAOLMARA;
+                else
+                    return;
+
+                QuestStatus const status = player->GetQuestStatus(questId);
+                SpellEffIndex const index = (status == QUEST_STATUS_NONE || status == QUEST_STATUS_INCOMPLETE) ? EFFECT_0 : EFFECT_1;
+                player->CastSpell(player, GetSpellInfo()->Effects[index].BasePoints, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnCast += SpellCastFn(spell_gen_isle_of_thunder_beacon_SpellScript::HandleCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_isle_of_thunder_beacon_SpellScript();
+        }
+};
+
 void AddSC_generic_spell_scripts()
 {
     new spell_gen_burn_constriction_totem();
@@ -3847,4 +3899,5 @@ void AddSC_generic_spell_scripts()
     new spell_gen_wg_water();
     new spell_gen_whisper_gulch_yogg_saron_whisper();
     new spell_gen_override_display_power();
+    new spell_gen_isle_of_thunder_beacon();
 }

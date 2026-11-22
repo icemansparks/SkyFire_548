@@ -2526,6 +2526,274 @@ public:
     }
 };
 
+// 105574 - Zen Alchemist Stone
+class spell_item_zen_alchemist_stone : public SpellScriptLoader
+{
+    public:
+        spell_item_zen_alchemist_stone() : SpellScriptLoader("spell_item_zen_alchemist_stone") { }
+
+        class spell_item_zen_alchemist_stone_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_zen_alchemist_stone_AuraScript);
+
+            enum
+            {
+                SPELL_STRENGTH_PROC  = 60229,
+                SPELL_AGILITY_PROC   = 60233,
+                SPELL_INTELLECT_PROC = 60234,
+                COOLDOWN_SECONDS     = 55
+            };
+
+            bool Load() OVERRIDE
+            {
+                return GetUnitOwner()->GetTypeId() == TypeID::TYPEID_PLAYER;
+            }
+
+            void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+            {
+                PreventDefaultAction();
+
+                Player* player = GetTarget()->ToPlayer();
+                if (player->HasSpellCooldown(GetSpellInfo()->Id))
+                    return;
+
+                // Procs on damage only
+                DamageInfo* damageInfo = eventInfo.GetDamageInfo();
+                if (!damageInfo || !damageInfo->GetDamage())
+                    return;
+
+                // Highest of Strength, Agility, Intellect; on a tie the later stat wins
+                uint32 buffId = SPELL_STRENGTH_PROC;
+                float best = player->GetStat(STAT_STRENGTH);
+                if (player->GetStat(STAT_AGILITY) >= best)
+                {
+                    buffId = SPELL_AGILITY_PROC;
+                    best = player->GetStat(STAT_AGILITY);
+                }
+                if (player->GetStat(STAT_INTELLECT) >= best)
+                    buffId = SPELL_INTELLECT_PROC;
+
+                player->AddSpellCooldown(GetSpellInfo()->Id, 0, time(NULL) + COOLDOWN_SECONDS);
+
+                // The stat buff takes the amount of the stone's own effect
+                player->CastCustomSpell(buffId, SPELLVALUE_BASE_POINT0, aurEff->GetAmount(), player, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectProc += AuraEffectProcFn(spell_item_zen_alchemist_stone_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_zen_alchemist_stone_AuraScript();
+        }
+};
+
+enum DrumsOfRage
+{
+    SPELL_DRUMS_EXHAUSTED             = 57723,
+    SPELL_DRUMS_SATED                 = 57724,
+    SPELL_DRUMS_TEMPORAL_DISPLACEMENT = 80354,
+    SPELL_DRUMS_INSANITY              = 95809
+};
+
+// 146555 - Drums of Rage
+class spell_item_drums_of_rage : public SpellScriptLoader
+{
+    public:
+        spell_item_drums_of_rage() : SpellScriptLoader("spell_item_drums_of_rage") { }
+
+        class spell_item_drums_of_rage_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_drums_of_rage_SpellScript);
+
+            // Same lockouts as Bloodlust and Heroism: raid members who already had one of
+            // them lose out, everyone hit gets Exhaustion
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_INSANITY));
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_EXHAUSTED));
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_SATED));
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_TEMPORAL_DISPLACEMENT));
+            }
+
+            void ApplyDebuff()
+            {
+                if (Unit* target = GetHitUnit())
+                    target->CastSpell(target, SPELL_DRUMS_EXHAUSTED, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_drums_of_rage_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_drums_of_rage_SpellScript::FilterTargets, EFFECT_1, TARGET_UNIT_CASTER_AREA_RAID);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_drums_of_rage_SpellScript::FilterTargets, EFFECT_2, TARGET_UNIT_CASTER_AREA_RAID);
+                AfterHit += SpellHitFn(spell_item_drums_of_rage_SpellScript::ApplyDebuff);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_drums_of_rage_SpellScript();
+        }
+};
+
+// 51508 - Party G.R.E.N.A.D.E. (dance tick)
+class spell_item_party_grenade_eff : public SpellScriptLoader
+{
+    public:
+        spell_item_party_grenade_eff() : SpellScriptLoader("spell_item_party_grenade_eff") { }
+
+        class spell_item_party_grenade_eff_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_party_grenade_eff_SpellScript);
+
+            void HandleDance(SpellEffIndex /*effIndex*/)
+            {
+                if (Player* target = GetHitPlayer())
+                    target->HandleEmoteStateCommand(EMOTE_STATE_DANCE);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_item_party_grenade_eff_SpellScript::HandleDance, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_party_grenade_eff_SpellScript();
+        }
+};
+
+// 51510 - Party G.R.E.N.A.D.E. (the zone aura; the dance tick spell is its base points)
+class spell_item_party_grenade : public SpellScriptLoader
+{
+    public:
+        spell_item_party_grenade() : SpellScriptLoader("spell_item_party_grenade") { }
+
+        class spell_item_party_grenade_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_party_grenade_AuraScript);
+
+            // The first periodic tick comes after 3 s: start the dance on entering the aura
+            void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* owner = GetOwner()->ToPlayer())
+                    owner->CastSpell(owner, GetSpellInfo()->Effects[EFFECT_0].BasePoints, true);
+            }
+
+            void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* owner = GetOwner()->ToPlayer())
+                    owner->SetUInt32Value(UNIT_FIELD_NPC_EMOTESTATE, EMOTE_STATE_NONE);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectApply += AuraEffectApplyFn(spell_item_party_grenade_AuraScript::HandleApply, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+                OnEffectRemove += AuraEffectRemoveFn(spell_item_party_grenade_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_party_grenade_AuraScript();
+        }
+};
+
+// 128887 - Swarmkeeper's Medallion
+class spell_item_swarmkeepers_speed : public SpellScriptLoader
+{
+    public:
+        spell_item_swarmkeepers_speed() : SpellScriptLoader("spell_item_swarmkeepers_speed") { }
+
+        class spell_item_swarmkeepers_speed_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_swarmkeepers_speed_AuraScript);
+
+            enum
+            {
+                SPELL_SWARMKEEPERS_SPEED_EFF = 128882
+            };
+
+            // The speed spell is applied by area on entering the zone, so equipping the
+            // medallion inside the zone would otherwise do nothing until the next area change
+            void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* player = GetOwner()->ToPlayer())
+                    player->CastSpell(player, SPELL_SWARMKEEPERS_SPEED_EFF, true);
+            }
+
+            // Taking the medallion off ends the speed at once instead of at the next area change
+            void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* player = GetOwner()->ToPlayer())
+                    player->RemoveAurasDueToSpell(SPELL_SWARMKEEPERS_SPEED_EFF);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectApply += AuraEffectApplyFn(spell_item_swarmkeepers_speed_AuraScript::HandleApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+                OnEffectRemove += AuraEffectRemoveFn(spell_item_swarmkeepers_speed_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_swarmkeepers_speed_AuraScript();
+        }
+};
+
+// 138728 - Change of Tactics, 146310 - Restless Agility, 146317 - Restless Spirit
+class spell_item_restless_stat_trinket : public SpellScriptLoader
+{
+    public:
+        spell_item_restless_stat_trinket() : SpellScriptLoader("spell_item_restless_stat_trinket") { }
+
+        class spell_item_restless_stat_trinket_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_restless_stat_trinket_AuraScript);
+
+            // The buff starts at full stacks and loses one stack per tick of effect 1
+            void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                // A fresh cast still has its full duration; an aura loaded at login has run down
+                // and keeps its saved stack count
+                if (GetAura()->GetDuration() != GetAura()->GetMaxDuration())
+                    return;
+
+                GetAura()->SetStackAmount(GetSpellInfo()->StackAmount);
+            }
+
+            // A re-proc while the buff is up adds one stack and refreshes the duration; it
+            // starts over at full stacks like a fresh cast
+            void HandleRefresh(uint8& /*charges*/)
+            {
+                GetAura()->SetStackAmount(GetSpellInfo()->StackAmount);
+            }
+
+            void HandleTick(AuraEffect const* /*aurEff*/)
+            {
+                GetAura()->ModStackAmount(-1);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnRefreshCharges += AuraRefreshChargesFn(spell_item_restless_stat_trinket_AuraScript::HandleRefresh);
+                AfterEffectApply += AuraEffectApplyFn(spell_item_restless_stat_trinket_AuraScript::HandleApply, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY, AURA_EFFECT_HANDLE_REAL);
+                OnEffectPeriodic += AuraEffectPeriodicFn(spell_item_restless_stat_trinket_AuraScript::HandleTick, EFFECT_1, SPELL_AURA_PERIODIC_DUMMY);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_restless_stat_trinket_AuraScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2593,4 +2861,10 @@ void AddSC_item_spell_scripts()
     new spell_item_chicken_cover();
     new spell_item_muisek_vessel();
     new spell_item_greatmothers_soulcatcher();
+    new spell_item_zen_alchemist_stone();
+    new spell_item_drums_of_rage();
+    new spell_item_party_grenade_eff();
+    new spell_item_party_grenade();
+    new spell_item_swarmkeepers_speed();
+    new spell_item_restless_stat_trinket();
 }
