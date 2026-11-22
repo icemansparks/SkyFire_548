@@ -2591,6 +2591,55 @@ class spell_item_zen_alchemist_stone : public SpellScriptLoader
         }
 };
 
+enum DrumsOfRage
+{
+    SPELL_DRUMS_EXHAUSTED             = 57723,
+    SPELL_DRUMS_SATED                 = 57724,
+    SPELL_DRUMS_TEMPORAL_DISPLACEMENT = 80354,
+    SPELL_DRUMS_INSANITY              = 95809
+};
+
+// 146555 - Drums of Rage
+class spell_item_drums_of_rage : public SpellScriptLoader
+{
+    public:
+        spell_item_drums_of_rage() : SpellScriptLoader("spell_item_drums_of_rage") { }
+
+        class spell_item_drums_of_rage_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_drums_of_rage_SpellScript);
+
+            // Same lockouts as Bloodlust and Heroism: raid members who already had one of
+            // them lose out, everyone hit gets Exhaustion
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_INSANITY));
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_EXHAUSTED));
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_SATED));
+                targets.remove_if(Skyfire::UnitAuraCheck(true, SPELL_DRUMS_TEMPORAL_DISPLACEMENT));
+            }
+
+            void ApplyDebuff()
+            {
+                if (Unit* target = GetHitUnit())
+                    target->CastSpell(target, SPELL_DRUMS_EXHAUSTED, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_drums_of_rage_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_CASTER_AREA_RAID);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_drums_of_rage_SpellScript::FilterTargets, EFFECT_1, TARGET_UNIT_CASTER_AREA_RAID);
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_drums_of_rage_SpellScript::FilterTargets, EFFECT_2, TARGET_UNIT_CASTER_AREA_RAID);
+                AfterHit += SpellHitFn(spell_item_drums_of_rage_SpellScript::ApplyDebuff);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_drums_of_rage_SpellScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2659,4 +2708,5 @@ void AddSC_item_spell_scripts()
     new spell_item_muisek_vessel();
     new spell_item_greatmothers_soulcatcher();
     new spell_item_zen_alchemist_stone();
+    new spell_item_drums_of_rage();
 }
