@@ -14,6 +14,7 @@ set(scripts_STAT_SRCS
   Pandaria/TempleOfJadeSerpent/instance_temple_of_jade_serpent.cpp
   Pandaria/zone_valley_of_the_four_winds.cpp
   Pandaria/zone_wandering_island.cpp
+  Pandaria/WorldBosses/boss_yu_lon.cpp
   Pandaria/WorldBosses/boss_niuzao.cpp
   Pandaria/WorldBosses/boss_chi_ji.cpp
   Pandaria/WorldBosses/celestial_court.h
