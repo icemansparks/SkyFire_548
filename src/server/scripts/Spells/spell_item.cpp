@@ -2526,6 +2526,71 @@ public:
     }
 };
 
+// 105574 - Zen Alchemist Stone
+class spell_item_zen_alchemist_stone : public SpellScriptLoader
+{
+    public:
+        spell_item_zen_alchemist_stone() : SpellScriptLoader("spell_item_zen_alchemist_stone") { }
+
+        class spell_item_zen_alchemist_stone_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_zen_alchemist_stone_AuraScript);
+
+            enum
+            {
+                SPELL_STRENGTH_PROC  = 60229,
+                SPELL_AGILITY_PROC   = 60233,
+                SPELL_INTELLECT_PROC = 60234,
+                COOLDOWN_SECONDS     = 55
+            };
+
+            bool Load() OVERRIDE
+            {
+                return GetUnitOwner()->GetTypeId() == TypeID::TYPEID_PLAYER;
+            }
+
+            void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+            {
+                PreventDefaultAction();
+
+                Player* player = GetTarget()->ToPlayer();
+                if (player->HasSpellCooldown(GetSpellInfo()->Id))
+                    return;
+
+                // Procs on damage only
+                DamageInfo* damageInfo = eventInfo.GetDamageInfo();
+                if (!damageInfo || !damageInfo->GetDamage())
+                    return;
+
+                // Highest of Strength, Agility, Intellect; on a tie the later stat wins
+                uint32 buffId = SPELL_STRENGTH_PROC;
+                float best = player->GetStat(STAT_STRENGTH);
+                if (player->GetStat(STAT_AGILITY) >= best)
+                {
+                    buffId = SPELL_AGILITY_PROC;
+                    best = player->GetStat(STAT_AGILITY);
+                }
+                if (player->GetStat(STAT_INTELLECT) >= best)
+                    buffId = SPELL_INTELLECT_PROC;
+
+                player->AddSpellCooldown(GetSpellInfo()->Id, 0, time(NULL) + COOLDOWN_SECONDS);
+
+                // The stat buff takes the amount of the stone's own effect
+                player->CastCustomSpell(buffId, SPELLVALUE_BASE_POINT0, aurEff->GetAmount(), player, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectProc += AuraEffectProcFn(spell_item_zen_alchemist_stone_AuraScript::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_zen_alchemist_stone_AuraScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2593,4 +2658,5 @@ void AddSC_item_spell_scripts()
     new spell_item_chicken_cover();
     new spell_item_muisek_vessel();
     new spell_item_greatmothers_soulcatcher();
+    new spell_item_zen_alchemist_stone();
 }
