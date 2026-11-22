@@ -3916,6 +3916,99 @@ class spell_gen_noodle_soup : public SpellScriptLoader
         }
 };
 
+// 58984 - Shadowmeld
+class spell_gen_shadowmeld : public SpellScriptLoader
+{
+    public:
+        spell_gen_shadowmeld() : SpellScriptLoader("spell_gen_shadowmeld") { }
+
+        class spell_gen_shadowmeld_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_shadowmeld_SpellScript);
+
+            void HandleHit(SpellEffIndex /*effIndex*/)
+            {
+                Unit* caster = GetCaster();
+                // Stay in combat when fighting a boss
+                if (!caster->GetInstanceScript() || !caster->GetInstanceScript()->IsEncounterInProgress())
+                    caster->CombatStop();
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_gen_shadowmeld_SpellScript::HandleHit, EFFECT_1, SPELL_EFFECT_DUMMY);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_shadowmeld_SpellScript();
+        }
+};
+
+// 69041 - Rocket Barrage (Goblin racial)
+class spell_gen_rocket_barrage : public SpellScriptLoader
+{
+    public:
+        spell_gen_rocket_barrage() : SpellScriptLoader("spell_gen_rocket_barrage") { }
+
+        class spell_gen_rocket_barrage_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_gen_rocket_barrage_SpellScript);
+
+            void HandleDamage(SpellEffIndex /*effIndex*/)
+            {
+                if (Player* caster = GetCaster()->ToPlayer())
+                {
+                    float ap = std::max(caster->GetTotalAttackPowerValue(WeaponAttackType::BASE_ATTACK), caster->GetTotalAttackPowerValue(WeaponAttackType::RANGED_ATTACK));
+                    SetHitDamage(1 + int32(0.25f * ap) + int32(0.429f * caster->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE)) + int32(caster->getLevel()) * 2);
+                }
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_gen_rocket_barrage_SpellScript::HandleDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_gen_rocket_barrage_SpellScript();
+        }
+};
+
+// 43681 - Inactive
+class spell_gen_inactive : public SpellScriptLoader
+{
+    public:
+        spell_gen_inactive() : SpellScriptLoader("spell_gen_inactive") { }
+
+        class spell_gen_inactive_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_gen_inactive_AuraScript);
+
+            void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                // Leave the battleground when the Inactive timer runs out. In the 5.4.8 client data effect 0 is
+                // SPELL_AURA_MOD_CURRENCY_GAIN (aura 349), so the SPELL_AURA_DUMMY branch for 43681 in
+                // AuraEffect::HandleAuraDummy never runs and cannot do this
+                if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+                    if (Player* player = GetTarget()->ToPlayer())
+                        player->LeaveBattleground();
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectRemove += AuraEffectRemoveFn(spell_gen_inactive_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_MOD_CURRENCY_GAIN, AURA_EFFECT_HANDLE_REAL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_gen_inactive_AuraScript();
+        }
+};
+
 void AddSC_generic_spell_scripts()
 {
     new spell_gen_burn_constriction_totem();
@@ -4000,4 +4093,7 @@ void AddSC_generic_spell_scripts()
     new spell_gen_override_display_power();
     new spell_gen_banquet_of_the_x();
     new spell_gen_noodle_soup();
+    new spell_gen_shadowmeld();
+    new spell_gen_rocket_barrage();
+    new spell_gen_inactive();
 }
