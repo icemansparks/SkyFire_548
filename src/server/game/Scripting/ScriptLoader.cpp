@@ -635,6 +635,7 @@ void AddSC_stormstout_brewery();
 // Celestial Court
 void AddSC_npc_emperor_shaohao();
 void AddSC_boss_xuen();
+void AddSC_boss_chi_ji();
 // Valley of the four Winds
 void AddSC_valley_of_the_four_winds();
 
@@ -1356,6 +1357,7 @@ void AddPandariaScripts()
     // Celestial Court
     AddSC_npc_emperor_shaohao();
     AddSC_boss_xuen();
+    AddSC_boss_chi_ji();
     // Valley of the four Winds
     AddSC_valley_of_the_four_winds();
 #endif
