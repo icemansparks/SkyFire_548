@@ -634,6 +634,8 @@ void AddSC_instance_stormstout_brewery();
 void AddSC_stormstout_brewery();
 // Valley of the four Winds
 void AddSC_valley_of_the_four_winds();
+// Timeless Isle
+void AddSC_zone_timeless_isle();
 
 // Pets
 void AddSC_deathknight_pet_scripts();
@@ -1352,6 +1354,8 @@ void AddPandariaScripts()
     AddSC_stormstout_brewery();
     // Valley of the four Winds
     AddSC_valley_of_the_four_winds();
+    // Timeless Isle
+    AddSC_zone_timeless_isle();
 #endif
 }
 
