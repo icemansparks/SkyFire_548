@@ -21,6 +21,7 @@ EndContentData */
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "Player.h"
+#include "Group.h"
 #include "WorldSession.h"
 
 class npc_ghoul_flayer : public CreatureScript
@@ -173,10 +174,137 @@ public:
     }
 };
 
+/*######
+## Quest: Beat It Out of Them (27522)
+## npc_scourge_siege_engineer
+######*/
+
+enum ScourgeSiegeEngineer
+{
+    TALK_DIED                  = 0,
+    TALK_CREDIT_1              = 1,
+    TALK_CREDIT_2              = 2,
+
+    EVENT_THROW_DYNAMITE       = 1,
+    SPELL_THROW_DYNAMITE       = 86088,
+
+    QUEST_BEAT_IT_OUT_OF_THEM  = 27522,
+
+    OBJECTIVE_ENGINEERS        = 265859,
+    OBJECTIVE_GIDVINS_LOCATION = 265860,
+    OBJECTIVE_GIDVINS_CAPTOR   = 265861,
+
+    NPC_CREDIT_1               = 45845,
+    NPC_CREDIT_2               = 45846
+};
+
+class npc_scourge_siege_engineer : public CreatureScript
+{
+public:
+    npc_scourge_siege_engineer() : CreatureScript("npc_scourge_siege_engineer") { }
+
+    CreatureAI* GetAI(Creature* creature) const OVERRIDE
+    {
+        return new npc_scourge_siege_engineerAI(creature);
+    }
+
+    struct npc_scourge_siege_engineerAI : public ScriptedAI
+    {
+        npc_scourge_siege_engineerAI(Creature* creature) : ScriptedAI(creature) { }
+
+        void Reset() OVERRIDE
+        {
+            _events.Reset();
+        }
+
+        void EnterCombat(Unit* /*who*/) OVERRIDE
+        {
+            _events.ScheduleEvent(EVENT_THROW_DYNAMITE, 10000);
+        }
+
+        void JustDied(Unit* killer) OVERRIDE
+        {
+            Player* killerPlayer = killer ? killer->GetCharmerOrOwnerPlayerOrPlayerItself() : NULL;
+            if (!killerPlayer)
+                return;
+
+            // The engine shares the kill counter with the whole group, so the bonus credits go to every member in range.
+            if (Group* group = killerPlayer->GetGroup())
+            {
+                for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                    if (Player* member = ref->GetSource())
+                        if (member->IsAtGroupRewardDistance(me) && (member->IsAlive() || !member->GetCorpse()))
+                            CreditPlayer(member, member == killerPlayer);
+            }
+            else
+                CreditPlayer(killerPlayer, true);
+        }
+
+        void UpdateAI(uint32 diff) OVERRIDE
+        {
+            if (!UpdateVictim())
+                return;
+
+            _events.Update(diff);
+
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
+
+            while (uint32 eventId = _events.ExecuteEvent())
+            {
+                switch (eventId)
+                {
+                    case EVENT_THROW_DYNAMITE:
+                        DoCastVictim(SPELL_THROW_DYNAMITE);
+                        _events.ScheduleEvent(EVENT_THROW_DYNAMITE, urand(5000, 7000));
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            DoMeleeAttackIfReady();
+        }
+
+    private:
+        // The third kill reveals where Gidwin is, the sixth who holds him; >= keeps a credit missed on an earlier kill.
+        void CreditPlayer(Player* player, bool talk)
+        {
+            if (player->GetQuestStatus(QUEST_BEAT_IT_OUT_OF_THEM) != QUEST_STATUS_INCOMPLETE)
+                return;
+
+            uint32 engineers = player->GetQuestObjectiveCounter(OBJECTIVE_ENGINEERS);
+            bool credited = false;
+
+            if (engineers >= 3 && !player->GetQuestObjectiveCounter(OBJECTIVE_GIDVINS_LOCATION))
+            {
+                if (talk)
+                    Talk(TALK_CREDIT_1, player);
+                player->KilledMonsterCredit(NPC_CREDIT_1);
+                credited = true;
+            }
+
+            if (engineers >= 6 && !player->GetQuestObjectiveCounter(OBJECTIVE_GIDVINS_CAPTOR))
+            {
+                if (talk)
+                    Talk(TALK_CREDIT_2, player);
+                player->KilledMonsterCredit(NPC_CREDIT_2);
+                credited = true;
+            }
+
+            if (!credited && talk)
+                Talk(TALK_DIED, player);
+        }
+
+        EventMap _events;
+    };
+};
+
 void AddSC_eastern_plaguelands()
 {
     new npc_ghoul_flayer();
     new npc_augustus_the_touched();
     new npc_darrowshire_spirit();
     new npc_tirion_fordring();
+    new npc_scourge_siege_engineer();
 }
