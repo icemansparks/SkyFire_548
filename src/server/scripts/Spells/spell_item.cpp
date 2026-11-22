@@ -2526,6 +2526,146 @@ public:
     }
 };
 
+// 73331 - Sylvanas' Music Box
+class spell_item_sylvanas_music_box : public SpellScriptLoader
+{
+    public:
+        spell_item_sylvanas_music_box() : SpellScriptLoader("spell_item_sylvanas_music_box") { }
+
+        class spell_item_sylvanas_music_box_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_sylvanas_music_box_SpellScript);
+
+            enum
+            {
+                SOUND_LAMENT_OF_THE_HIGHBORNE = 15095
+            };
+
+            void HandleScript(SpellEffIndex effIndex)
+            {
+                PreventHitDefaultEffect(effIndex);
+                if (Player* target = GetHitPlayer())
+                    target->PlayDirectSound(SOUND_LAMENT_OF_THE_HIGHBORNE, target);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_item_sylvanas_music_box_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_sylvanas_music_box_SpellScript();
+        }
+};
+
+// 129339 - Flip It (Flippable Table)
+class spell_item_flippable_table : public SpellScriptLoader
+{
+    public:
+        spell_item_flippable_table() : SpellScriptLoader("spell_item_flippable_table") { }
+
+        class spell_item_flippable_table_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_flippable_table_SpellScript);
+
+            enum
+            {
+                SPELL_FLIP_TABLE_RARE   = 129338,
+                SPELL_FLIP_TABLE_COMMON = 128783
+            };
+
+            // One flip in twenty puts the table down the rare way
+            void HandleCast()
+            {
+                Unit* caster = GetCaster();
+                caster->CastSpell(caster, roll_chance_i(5) ? SPELL_FLIP_TABLE_RARE : SPELL_FLIP_TABLE_COMMON, false);
+            }
+
+            void Register() OVERRIDE
+            {
+                AfterCast += SpellCastFn(spell_item_flippable_table_SpellScript::HandleCast);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_flippable_table_SpellScript();
+        }
+};
+
+// 129787 - Hardened Shell
+class spell_item_hardened_shell : public SpellScriptLoader
+{
+    public:
+        spell_item_hardened_shell() : SpellScriptLoader("spell_item_hardened_shell") { }
+
+        class spell_item_hardened_shell_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_hardened_shell_SpellScript);
+
+            // Knocks the target off its mount
+            void HandleHit(SpellEffIndex /*effIndex*/)
+            {
+                if (Unit* target = GetHitUnit())
+                    target->RemoveAurasByType(SPELL_AURA_MOUNTED);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_item_hardened_shell_SpellScript::HandleHit, EFFECT_0, SPELL_EFFECT_APPLY_AURA);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_hardened_shell_SpellScript();
+        }
+};
+
+// Gender-specific transform toys: the item spell is a dummy that casts the male or female
+// transform aura on the caster
+class spell_item_gender_transform : public SpellScriptLoader
+{
+    public:
+        spell_item_gender_transform(char const* scriptName, uint32 maleSpell, uint32 femaleSpell) : SpellScriptLoader(scriptName),
+            _maleSpell(maleSpell), _femaleSpell(femaleSpell) { }
+
+        class spell_item_gender_transform_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_gender_transform_SpellScript);
+
+            public:
+                spell_item_gender_transform_SpellScript(uint32 maleSpell, uint32 femaleSpell) : SpellScript(),
+                    _maleSpell(maleSpell), _femaleSpell(femaleSpell) { }
+
+            private:
+                void HandleDummy(SpellEffIndex /*effIndex*/)
+                {
+                    Unit* caster = GetCaster();
+                    caster->CastSpell(caster, caster->getGender() == GENDER_MALE ? _maleSpell : _femaleSpell, true);
+                }
+
+                void Register() OVERRIDE
+                {
+                    OnEffectHit += SpellEffectFn(spell_item_gender_transform_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+                }
+
+                uint32 _maleSpell;
+                uint32 _femaleSpell;
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_gender_transform_SpellScript(_maleSpell, _femaleSpell);
+        }
+
+    private:
+        uint32 _maleSpell;
+        uint32 _femaleSpell;
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2593,4 +2733,11 @@ void AddSC_item_spell_scripts()
     new spell_item_chicken_cover();
     new spell_item_muisek_vessel();
     new spell_item_greatmothers_soulcatcher();
+    new spell_item_sylvanas_music_box();
+    new spell_item_flippable_table();
+    new spell_item_hardened_shell();
+    // 149228 Celestial Defender's Medallion
+    new spell_item_gender_transform("spell_item_celestial_defender", 148369, 149229);
+    // 148565 Spectral Grog
+    new spell_item_gender_transform("spell_item_spectral_grog", 148564, 148563);
 }
