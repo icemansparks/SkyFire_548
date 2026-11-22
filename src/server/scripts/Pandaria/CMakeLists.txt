@@ -11,7 +11,10 @@ set(scripts_STAT_SRCS
   Pandaria/StormstoutBrewery/instance_stormstout_brewery.cpp
   Pandaria/StormstoutBrewery/stormstout_brewery.h
   Pandaria/ShadopanMonastery/boss_gu_cloudstrike.cpp
+  Pandaria/ShadopanMonastery/boss_master_snowdrift.cpp
   Pandaria/ShadopanMonastery/instance_shadopan_monastery.cpp
+  Pandaria/ShadopanMonastery/master_snowdrift_adds.cpp
+  Pandaria/ShadopanMonastery/master_snowdrift_spells.cpp
   Pandaria/ShadopanMonastery/shadopan_monastery.cpp
   Pandaria/ShadopanMonastery/shadopan_monastery.h
   Pandaria/TempleOfJadeSerpent/temple_of_jade_serpent.h

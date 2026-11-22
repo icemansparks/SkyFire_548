@@ -20,14 +20,19 @@
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
 #include "CreatureTextMgr.h"
+#include "Containers.h"
 #include "shadopan_monastery.h"
 
 static DoorData const doorData[] =
 {
     { GO_CLOUDSTRIKE_ENTRANCE, DATA_GU_CLOUDSTRIKE, DOOR_TYPE_ROOM,    BOUNDARY_NONE },
     { GO_CLOUDSTRIKE_EXIT,     DATA_GU_CLOUDSTRIKE, DOOR_TYPE_PASSAGE, BOUNDARY_NONE },
+    { GO_SNOWDRIFT_DOJO_DOOR,  DATA_MASTER_SNOWDRIFT, DOOR_TYPE_ROOM,    BOUNDARY_NONE },
+    { GO_SNOWDRIFT_EXIT,       DATA_MASTER_SNOWDRIFT, DOOR_TYPE_PASSAGE, BOUNDARY_NONE },
     { 0,                       0,                   DOOR_TYPE_ROOM,    BOUNDARY_NONE }
 };
+
+static Position const snowdriftCenterPos = { 3659.08f, 3015.38f, 804.74f };
 
 class instance_shadopan_monastery : public InstanceMapScript
 {
@@ -48,6 +53,14 @@ class instance_shadopan_monastery : public InstanceMapScript
                 shaViolenceGUID      = 0;
                 taranZhuGUID         = 0;
                 azureSerpentGUID     = 0;
+                snowdriftState       = NOT_STARTED;
+                aliveNoviceCount     = MAX_NOVICE;
+                aliveMinibossCount   = 2;
+                snowdriftRefereeGUID = 0;
+                snowdriftEntranceGUID  = 0;
+                snowdriftFireWallGUID  = 0;
+                snowdriftPossessionsGUID  = 0;
+                snowdriftPossessionsHGUID = 0;
             }
 
             void OnCreatureCreate(Creature* creature) OVERRIDE
@@ -69,6 +82,30 @@ class instance_shadopan_monastery : public InstanceMapScript
                     case NPC_AZURE_SERPENT:
                         azureSerpentGUID = creature->GetGUID();
                         break;
+                    case NPC_PANDAREEN_REFEREE:
+                        snowdriftRefereeGUID = creature->GetGUID();
+                        break;
+                    case NPC_SNOWDRIFT_POSITION:
+                    {
+                        // The stalkers of the dojo sit in three rings around its centre: miniboss spots, first and second novice spots.
+                        float dist = creature->GetDistance(snowdriftCenterPos);
+                        if (dist >= 5.0f && dist < 15.0f)
+                        {
+                            minibossPositions.push_back(creature->GetGUID());
+                            minibossPositionsSave.push_back(creature->GetGUID());
+                        }
+                        else if (dist >= 15.0f && dist < 18.5f)
+                        {
+                            firstNovicePositions.push_back(creature->GetGUID());
+                            firstNovicePositionsSave.push_back(creature->GetGUID());
+                        }
+                        else if (dist >= 18.5f && dist <= 25.0f)
+                        {
+                            secondNovicePositions.push_back(creature->GetGUID());
+                            secondNovicePositionsSave.push_back(creature->GetGUID());
+                        }
+                        break;
+                    }
                     case NPC_HATEFUL_ESSENCE:
                         creature->SetDisplayId(41106);
                         break;
@@ -83,17 +120,81 @@ class instance_shadopan_monastery : public InstanceMapScript
                 {
                     case GO_CLOUDSTRIKE_ENTRANCE:
                     case GO_CLOUDSTRIKE_EXIT:
+                    case GO_SNOWDRIFT_DOJO_DOOR:
+                    case GO_SNOWDRIFT_EXIT:
                         AddDoor(go, true);
+                        break;
+                    case GO_SNOWDRIFT_ENTRANCE:
+                        snowdriftEntranceGUID = go->GetGUID();
+                        break;
+                    case GO_SNOWDRIFT_FIRE_WALL:
+                        snowdriftFireWallGUID = go->GetGUID();
+                        break;
+                    case GO_SNOWDRIFT_POSSESSIONS:
+                        snowdriftPossessionsGUID = go->GetGUID();
+                        break;
+                    case GO_SNOWDRIFT_POSSESSIONS_H:
+                        snowdriftPossessionsHGUID = go->GetGUID();
                         break;
                     default:
                         break;
                 }
             }
 
+            bool SetBossState(uint32 type, EncounterState state) OVERRIDE
+            {
+                if (!InstanceScript::SetBossState(type, state))
+                    return false;
+
+                // Snowdrift leaves his possessions behind: the normal or the heroic chest, by difficulty.
+                if (type == DATA_MASTER_SNOWDRIFT && state == DONE)
+                    DoRespawnGameObject(instance->IsHeroic() ? snowdriftPossessionsHGUID : snowdriftPossessionsGUID, DAY);
+
+                return true;
+            }
+
             void SetData(uint32 type, uint32 data) OVERRIDE
             {
                 switch (type)
                 {
+                    case DATA_DEFEATED_NOVICE:
+                        if (aliveNoviceCount && !--aliveNoviceCount)
+                            if (Creature* referee = instance->GetCreature(snowdriftRefereeGUID))
+                                if (referee->IsAIEnabled)
+                                    referee->AI()->DoAction(1); // ACTION_NOVICE_DONE
+                        break;
+                    case DATA_DEFEATED_MINIBOSS:
+                        if (aliveMinibossCount && !--aliveMinibossCount)
+                            if (Creature* referee = instance->GetCreature(snowdriftRefereeGUID))
+                                if (referee->IsAIEnabled)
+                                    referee->AI()->DoAction(2); // ACTION_MINIBOSS_DONE
+                        break;
+                    case DATA_SNOWDRIFT_STATE:
+                        snowdriftState = data;
+                        if (data == IN_PROGRESS || data == FAIL)
+                        {
+                            aliveNoviceCount = MAX_NOVICE;
+                            aliveMinibossCount = 2;
+                            minibossPositions = minibossPositionsSave;
+                            firstNovicePositions = firstNovicePositionsSave;
+                            secondNovicePositions = secondNovicePositionsSave;
+                        }
+                        switch (data)
+                        {
+                            case IN_PROGRESS:
+                                HandleGameObject(snowdriftEntranceGUID, false);
+                                break;
+                            case DONE:
+                                HandleGameObject(snowdriftFireWallGUID, true);
+                                // no break: the entrance opens again as well
+                            case FAIL:
+                            case NOT_STARTED:
+                                HandleGameObject(snowdriftEntranceGUID, true);
+                                break;
+                            default:
+                                break;
+                        }
+                        break;
                     case DATA_ARCHERY:
                         iceArchersState = data;
                         HandleArchers(data, NPC_ARCHERY_FIRST, IceArchersPosition, firstArcherySet);
@@ -111,6 +212,8 @@ class instance_shadopan_monastery : public InstanceMapScript
             {
                 switch (type)
                 {
+                    case DATA_SNOWDRIFT_STATE:
+                        return snowdriftState;
                     case DATA_ARCHERY:
                         return iceArchersState;
                     case DATA_FIRE_ARCHERY:
@@ -135,6 +238,16 @@ class instance_shadopan_monastery : public InstanceMapScript
                         return taranZhuGUID;
                     case DATA_AZURE_SERPENT:
                         return azureSerpentGUID;
+                    case DATA_PANDAREN_REFEREE:
+                        return snowdriftRefereeGUID;
+                    case DATA_POSSESSIONS:
+                        return instance->IsHeroic() ? snowdriftPossessionsHGUID : snowdriftPossessionsGUID;
+                    case DATA_RANDOM_FIRST_POS:
+                        return TakeRandomGuid(firstNovicePositions);
+                    case DATA_RANDOM_SECOND_POS:
+                        return TakeRandomGuid(secondNovicePositions);
+                    case DATA_RANDOM_MINIBOSS_POS:
+                        return TakeRandomGuid(minibossPositions);
                     default:
                         break;
                 }
@@ -146,7 +259,7 @@ class instance_shadopan_monastery : public InstanceMapScript
                 OUT_SAVE_INST_DATA;
 
                 std::ostringstream saveStream;
-                saveStream << "S P M " << GetBossSaveData() << iceArchersState << ' ' << fireArchersState;
+                saveStream << "S P M " << GetBossSaveData() << iceArchersState << ' ' << fireArchersState << ' ' << snowdriftState;
 
                 OUT_SAVE_INST_DATA_COMPLETE;
                 return saveStream.str();
@@ -184,6 +297,11 @@ class instance_shadopan_monastery : public InstanceMapScript
 
                     loadStream >> temp;
                     fireArchersState = temp == DONE ? DONE : NOT_STARTED;
+
+                    // Saves written before the Snowdrift event end here; the stream then leaves temp at 0.
+                    temp = 0;
+                    loadStream >> temp;
+                    snowdriftState = temp == DONE ? DONE : NOT_STARTED;
                 }
                 else
                     OUT_LOAD_INST_DATA_FAIL;
@@ -192,6 +310,17 @@ class instance_shadopan_monastery : public InstanceMapScript
             }
 
         private:
+            // Hands out one stalker guid and takes it off the list, so a position is used once per run.
+            uint64 TakeRandomGuid(std::list<uint64>& guids) const
+            {
+                if (guids.empty())
+                    return 0;
+
+                uint64 guid = Skyfire::Containers::SelectRandomContainerElement(guids);
+                guids.remove(guid);
+                return guid;
+            }
+
             // Summons the three archers on IN_PROGRESS, the last one speaks the start and end lines, all leave on DONE.
             void HandleArchers(uint32 state, uint32 entry, Position const* positions, std::list<uint64>& set)
             {
@@ -223,6 +352,23 @@ class instance_shadopan_monastery : public InstanceMapScript
 
             std::list<uint64> firstArcherySet;
             std::list<uint64> secondArcherySet;
+
+            // Mutable: GetData64 hands out each stalker once.
+            mutable std::list<uint64> minibossPositions;
+            mutable std::list<uint64> firstNovicePositions;
+            mutable std::list<uint64> secondNovicePositions;
+            std::list<uint64> minibossPositionsSave;
+            std::list<uint64> firstNovicePositionsSave;
+            std::list<uint64> secondNovicePositionsSave;
+
+            uint32 snowdriftState;
+            uint8 aliveNoviceCount;
+            uint8 aliveMinibossCount;
+            uint64 snowdriftRefereeGUID;
+            uint64 snowdriftEntranceGUID;
+            uint64 snowdriftFireWallGUID;
+            uint64 snowdriftPossessionsGUID;
+            uint64 snowdriftPossessionsHGUID;
 
             uint32 iceArchersState;
             uint32 fireArchersState;
