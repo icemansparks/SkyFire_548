@@ -2666,6 +2666,91 @@ class spell_item_gender_transform : public SpellScriptLoader
         uint32 _femaleSpell;
 };
 
+// 80265 - Potion of Illusion
+class spell_item_potion_of_illusion : public SpellScriptLoader
+{
+    public:
+        spell_item_potion_of_illusion() : SpellScriptLoader("spell_item_potion_of_illusion") { }
+
+        class spell_item_potion_of_illusion_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_potion_of_illusion_SpellScript);
+
+            // Units that have no usable look to copy: no scale, hidden, or an invisible stalker model
+            struct IllusionSourceCheck
+            {
+                bool operator()(WorldObject* object) const
+                {
+                    Unit* unit = object->ToUnit();
+                    if (!unit)
+                        return true;
+
+                    if (unit->GetFloatValue(OBJECT_FIELD_SCALE) <= 0.0f || !unit->IsVisible())
+                        return true;
+
+                    CreatureDisplayInfoEntry const* info = sCreatureDisplayInfoStore.LookupEntry(unit->GetDisplayId());
+                    if (!info || !info->ModelId)
+                        return true;
+
+                    CreatureModelDataEntry const* model = sCreatureModelDataStore.LookupEntry(info->ModelId);
+                    if (!model || !model->ModelPath)
+                        return true;
+
+                    std::string path = model->ModelPath;
+                    std::transform(path.begin(), path.end(), path.begin(), ::toupper);
+                    return path.find("INVISIBLESTALKER") != std::string::npos;
+                }
+            };
+
+            // The caster's own selection wins when it is a valid source, otherwise one random unit in range
+            void FilterTargets(std::list<WorldObject*>& targets)
+            {
+                Unit* caster = GetCaster();
+                if (!caster)
+                    return;
+
+                targets.remove(caster);
+                targets.remove_if(IllusionSourceCheck());
+
+                if (Player* player = caster->ToPlayer())
+                {
+                    if (Unit* selection = player->GetSelectedUnit())
+                    {
+                        if (std::find(targets.begin(), targets.end(), selection) != targets.end())
+                        {
+                            targets.clear();
+                            targets.push_back(selection);
+                            return;
+                        }
+                    }
+                }
+
+                if (targets.size() > 1)
+                    Skyfire::Containers::RandomResizeList(targets, 1);
+            }
+
+            // The caster becomes a mirror image of the hit unit: the effect value is the mirror image spell
+            void HandleScript(SpellEffIndex /*effIndex*/)
+            {
+                Unit* caster = GetCaster();
+                Unit* target = GetHitUnit();
+                if (caster && target)
+                    caster->CastSpell(caster, GetEffectValue(), true, NULL, NULL, target->GetGUID());
+            }
+
+            void Register() OVERRIDE
+            {
+                OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_potion_of_illusion_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_SRC_AREA_ENTRY);
+                OnEffectHitTarget += SpellEffectFn(spell_item_potion_of_illusion_SpellScript::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_potion_of_illusion_SpellScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2740,4 +2825,5 @@ void AddSC_item_spell_scripts()
     new spell_item_gender_transform("spell_item_celestial_defender", 148369, 149229);
     // 148565 Spectral Grog
     new spell_item_gender_transform("spell_item_spectral_grog", 148564, 148563);
+    new spell_item_potion_of_illusion();
 }

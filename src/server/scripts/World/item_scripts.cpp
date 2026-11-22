@@ -153,6 +153,26 @@ public:
 };
 
 /*#####
+# item_primal_egg
+#####*/
+
+class item_primal_egg : public ItemScript
+{
+public:
+    item_primal_egg() : ItemScript("item_primal_egg") { }
+
+    bool OnExpire(Player* player, ItemTemplate const* /*pItemProto*/) OVERRIDE
+    {
+        ItemPosCountVec dest;
+        uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, 94296, 1); // Cracked Primal Egg
+        if (msg == EQUIP_ERR_OK)
+            player->StoreNewItem(dest, 94296, true, Item::GenerateItemRandomPropertyId(94296));
+
+        return true;
+    }
+};
+
+/*#####
 # item_disgusting_jar
 #####*/
 
@@ -690,6 +710,7 @@ void AddSC_item_scripts()
     new item_incendiary_explosives();
     new item_mysterious_egg();
     new item_disgusting_jar();
+    new item_primal_egg();
     new item_pile_fake_furs();
     new item_petrov_cluster_bombs();
     new item_dehta_trap_smasher();
