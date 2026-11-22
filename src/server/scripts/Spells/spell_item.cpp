@@ -2654,6 +2654,145 @@ class spell_ench_jade_spirit : public SpellScriptLoader
         }
 };
 
+// 104561 - Windsong
+class spell_ench_windsong : public SpellScriptLoader
+{
+    public:
+        spell_ench_windsong() : SpellScriptLoader("spell_ench_windsong") { }
+
+        class spell_ench_windsong_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_ench_windsong_AuraScript);
+
+            enum
+            {
+                SPELL_WINDSONG_HASTE   = 104423,
+                SPELL_WINDSONG_CRIT    = 104509,
+                SPELL_WINDSONG_MASTERY = 104510
+            };
+
+            bool Load() OVERRIDE
+            {
+                return GetUnitOwner()->GetTypeId() == TypeID::TYPEID_PLAYER;
+            }
+
+            void HandleProc(ProcEventInfo& /*eventInfo*/)
+            {
+                PreventDefaultAction();
+
+                Player* owner = GetUnitOwner()->ToPlayer();
+                Item* castItem = owner->GetItemByGuid(GetAura()->GetCastItemGUID());
+                if (!castItem)
+                    return;
+
+                uint32 const buffs[] = { SPELL_WINDSONG_HASTE, SPELL_WINDSONG_CRIT, SPELL_WINDSONG_MASTERY };
+                owner->CastSpell(owner, buffs[urand(0, 2)], true, castItem);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnProc += AuraProcFn(spell_ench_windsong_AuraScript::HandleProc);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_ench_windsong_AuraScript();
+        }
+};
+
+// 118314 - Colossus
+class spell_ench_colossus : public SpellScriptLoader
+{
+    public:
+        spell_ench_colossus() : SpellScriptLoader("spell_ench_colossus") { }
+
+        class spell_ench_colossus_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_ench_colossus_AuraScript);
+
+            enum
+            {
+                SPELL_COLOSSUS_ABSORB = 116631
+            };
+
+            bool Load() OVERRIDE
+            {
+                return GetUnitOwner()->GetTypeId() == TypeID::TYPEID_PLAYER;
+            }
+
+            void HandleProc(ProcEventInfo& /*eventInfo*/)
+            {
+                PreventDefaultAction();
+
+                Player* owner = GetUnitOwner()->ToPlayer();
+                if (Item* castItem = owner->GetItemByGuid(GetAura()->GetCastItemGUID()))
+                    owner->CastSpell(owner, SPELL_COLOSSUS_ABSORB, true, castItem);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnProc += AuraProcFn(spell_ench_colossus_AuraScript::HandleProc);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_ench_colossus_AuraScript();
+        }
+};
+
+// 82174, 126734 - Synapse Springs
+class spell_ench_synapse_springs : public SpellScriptLoader
+{
+    public:
+        spell_ench_synapse_springs() : SpellScriptLoader("spell_ench_synapse_springs") { }
+
+        class spell_ench_synapse_springs_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_ench_synapse_springs_SpellScript);
+
+            enum
+            {
+                SPELL_SYNAPSE_SPRINGS_AGILITY  = 96228,
+                SPELL_SYNAPSE_SPRINGS_STRENGTH = 96229,
+                SPELL_SYNAPSE_SPRINGS_INTELLECT = 96230
+            };
+
+            // Buffs the highest of Agility, Strength and Intellect by the amount of effect 0
+            void HandleHit()
+            {
+                Unit* caster = GetCaster();
+                float agility = caster->GetStat(STAT_AGILITY);
+                float strength = caster->GetStat(STAT_STRENGTH);
+                float intellect = caster->GetStat(STAT_INTELLECT);
+
+                uint32 buffId = SPELL_SYNAPSE_SPRINGS_AGILITY;
+                float best = agility;
+                if (strength > best)
+                {
+                    buffId = SPELL_SYNAPSE_SPRINGS_STRENGTH;
+                    best = strength;
+                }
+                if (intellect > best)
+                    buffId = SPELL_SYNAPSE_SPRINGS_INTELLECT;
+
+                int32 amount = GetSpellInfo()->Effects[EFFECT_0].CalcValue();
+                caster->CastCustomSpell(buffId, SPELLVALUE_BASE_POINT0, amount, caster, true);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnHit += SpellHitFn(spell_ench_synapse_springs_SpellScript::HandleHit);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_ench_synapse_springs_SpellScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2724,4 +2863,7 @@ void AddSC_item_spell_scripts()
     new spell_ench_dancing_steel();
     new spell_ench_jade_spirit_passive();
     new spell_ench_jade_spirit();
+    new spell_ench_windsong();
+    new spell_ench_colossus();
+    new spell_ench_synapse_springs();
 }
