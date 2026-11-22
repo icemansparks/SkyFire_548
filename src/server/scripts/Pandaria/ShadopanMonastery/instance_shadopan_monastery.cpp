@@ -29,6 +29,8 @@ static DoorData const doorData[] =
     { GO_CLOUDSTRIKE_EXIT,     DATA_GU_CLOUDSTRIKE, DOOR_TYPE_PASSAGE, BOUNDARY_NONE },
     { GO_SNOWDRIFT_DOJO_DOOR,  DATA_MASTER_SNOWDRIFT, DOOR_TYPE_ROOM,    BOUNDARY_NONE },
     { GO_SNOWDRIFT_EXIT,       DATA_MASTER_SNOWDRIFT, DOOR_TYPE_PASSAGE, BOUNDARY_NONE },
+    { GO_SHA_ENTRANCE,         DATA_SHA_VIOLENCE,   DOOR_TYPE_ROOM,    BOUNDARY_NONE },
+    { GO_SHA_EXIT,             DATA_SHA_VIOLENCE,   DOOR_TYPE_PASSAGE, BOUNDARY_NONE },
     { 0,                       0,                   DOOR_TYPE_ROOM,    BOUNDARY_NONE }
 };
 
@@ -61,6 +63,10 @@ class instance_shadopan_monastery : public InstanceMapScript
                 snowdriftFireWallGUID  = 0;
                 snowdriftPossessionsGUID  = 0;
                 snowdriftPossessionsHGUID = 0;
+                shaPrison1GUID       = 0;
+                shaPrison2GUID       = 0;
+                shaPrison3GUID       = 0;
+                containmentOverrideGUID = 0;
             }
 
             void OnCreatureCreate(Creature* creature) OVERRIDE
@@ -122,7 +128,21 @@ class instance_shadopan_monastery : public InstanceMapScript
                     case GO_CLOUDSTRIKE_EXIT:
                     case GO_SNOWDRIFT_DOJO_DOOR:
                     case GO_SNOWDRIFT_EXIT:
+                    case GO_SHA_ENTRANCE:
+                    case GO_SHA_EXIT:
                         AddDoor(go, true);
+                        break;
+                    case GO_SHA_PRISON_1:
+                        shaPrison1GUID = go->GetGUID();
+                        break;
+                    case GO_SHA_PRISON_2:
+                        shaPrison2GUID = go->GetGUID();
+                        break;
+                    case GO_SHA_PRISON_3:
+                        shaPrison3GUID = go->GetGUID();
+                        break;
+                    case GO_CONTAINMENT_OVERRIDE:
+                        containmentOverrideGUID = go->GetGUID();
                         break;
                     case GO_SNOWDRIFT_ENTRANCE:
                         snowdriftEntranceGUID = go->GetGUID();
@@ -242,6 +262,14 @@ class instance_shadopan_monastery : public InstanceMapScript
                         return snowdriftRefereeGUID;
                     case DATA_POSSESSIONS:
                         return instance->IsHeroic() ? snowdriftPossessionsHGUID : snowdriftPossessionsGUID;
+                    case DATA_SHA_PRISON_1:
+                        return shaPrison1GUID;
+                    case DATA_SHA_PRISON_2:
+                        return shaPrison2GUID;
+                    case DATA_SHA_PRISON_3:
+                        return shaPrison3GUID;
+                    case DATA_CONTAINMENT_OVERRIDE:
+                        return containmentOverrideGUID;
                     case DATA_RANDOM_FIRST_POS:
                         return TakeRandomGuid(firstNovicePositions);
                     case DATA_RANDOM_SECOND_POS:
@@ -369,6 +397,10 @@ class instance_shadopan_monastery : public InstanceMapScript
             uint64 snowdriftFireWallGUID;
             uint64 snowdriftPossessionsGUID;
             uint64 snowdriftPossessionsHGUID;
+            uint64 shaPrison1GUID;
+            uint64 shaPrison2GUID;
+            uint64 shaPrison3GUID;
+            uint64 containmentOverrideGUID;
 
             uint32 iceArchersState;
             uint32 fireArchersState;

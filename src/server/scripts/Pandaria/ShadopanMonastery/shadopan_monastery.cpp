@@ -624,6 +624,18 @@ class npc_destroying_sha : public CreatureScript
                 events.ScheduleEvent(EVENT_SHADOWS_OF_DESTRUCTION, urand(4 * IN_MILLISECONDS, 8 * IN_MILLISECONDS));
             }
 
+            void JustDied(Unit* /*killer*/) OVERRIDE
+            {
+                // Only the prisoned sha the boss summons count for Obvious Solution, not the spawns of the room.
+                if (me->GetDBTableGUIDLow())
+                    return;
+
+                if (InstanceScript* instance = me->GetInstanceScript())
+                    if (Creature* shaOfViolence = Unit::GetCreature(*me, instance->GetData64(DATA_SHA_VIOLENCE)))
+                        if (shaOfViolence->IsAIEnabled)
+                            shaOfViolence->AI()->SetData(TYPE_OBVIOUS_SOLUTION, 1);
+            }
+
             void UpdateAI(uint32 diff) OVERRIDE
             {
                 if (!UpdateVictim())

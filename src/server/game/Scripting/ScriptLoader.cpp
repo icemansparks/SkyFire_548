@@ -638,6 +638,7 @@ void AddSC_instance_shadopan_monastery();
 void AddSC_master_snowdrift_adds();
 void AddSC_master_snowdrift_spells();
 void AddSC_boss_master_snowdrift();
+void AddSC_boss_sha_of_violence();
 void AddSC_shadopan_monastery();
 // Valley of the four Winds
 void AddSC_valley_of_the_four_winds();
@@ -1363,6 +1364,7 @@ void AddPandariaScripts()
     AddSC_master_snowdrift_adds();
     AddSC_master_snowdrift_spells();
     AddSC_boss_master_snowdrift();
+    AddSC_boss_sha_of_violence();
     AddSC_shadopan_monastery();
     // Valley of the four Winds
     AddSC_valley_of_the_four_winds();

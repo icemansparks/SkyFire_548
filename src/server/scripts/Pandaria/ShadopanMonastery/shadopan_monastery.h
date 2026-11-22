@@ -22,6 +22,7 @@
 #define SHADOPAN_MONASTERY_H_
 
 #include "ScriptedCreature.h"
+#include <map>
 
 #define ShadopanMonasteryScriptName "instance_shadopan_monastery"
 
@@ -48,6 +49,13 @@ enum DataTypes
     DATA_DEFEATED_MINIBOSS      = 12,
     DATA_PANDAREN_REFEREE       = 13,
     DATA_POSSESSIONS            = 14,
+
+    // Sha of Violence
+    TYPE_OBVIOUS_SOLUTION       = 15,
+    DATA_SHA_PRISON_1           = 16,
+    DATA_SHA_PRISON_2           = 17,
+    DATA_SHA_PRISON_3           = 18,
+    DATA_CONTAINMENT_OVERRIDE   = 19,
 };
 
 enum CreaturesIds
@@ -69,6 +77,12 @@ enum CreaturesIds
     NPC_SNOWDRIFT_CLONE         = 56713,
     NPC_PANDAREEN_REFEREE       = 56505,
     NPC_LOTUS_STAFF             = 56678,
+
+    // Sha of Violence: the prisoned sha count for the achievement
+    NPC_VOLATILE_ENERGY         = 56766,
+    NPC_DESTROYING_SHA          = 56765,
+    NPC_SHA_MANIFESTATION       = 58201,
+    NPC_LESSER_VOLATILE_ENERGY  = 66652,
 
     // Trash
     NPC_ARCHERY_FIRST           = 64549,
@@ -93,6 +107,17 @@ enum GameObjectIds
     GO_SNOWDRIFT_FIRE_WALL      = 212908,
     GO_SNOWDRIFT_POSSESSIONS    = 214519,
     GO_SNOWDRIFT_POSSESSIONS_H  = 214518,
+    GO_SHA_ENTRANCE             = 210867,
+    GO_SHA_EXIT                 = 210866,
+    GO_SHA_PRISON_1             = 212062,
+    GO_SHA_PRISON_2             = 212063,
+    GO_SHA_PRISON_3             = 212064,
+    GO_CONTAINMENT_OVERRIDE     = 213457,
+};
+
+enum Worldstates
+{
+    WORLDSTATE_OBVIOUS_SOLUTION = 12362,
 };
 
 enum SharedSpells
@@ -124,6 +149,16 @@ Position const NovicePositions[7] =
     { 3677.58f, 3025.08f, 804.30f, 4.08f },
     { 3680.14f, 3023.08f, 804.30f, 4.06f },
     { 3682.78f, 3021.06f, 804.30f, 4.06f }
+};
+
+// The prisoned sha of the Sha of Violence room; killing all five solves "Obvious Solution".
+std::multimap<uint32, Position> const invPrisonedShaType =
+{
+    { NPC_VOLATILE_ENERGY,   { 3977.97f, 2980.77f, 780.09f, 0.00f } },
+    { NPC_VOLATILE_ENERGY,   { 3980.21f, 2981.08f, 780.00f, 0.15f } },
+    { NPC_DESTROYING_SHA,    { 4069.58f, 2925.11f, 780.00f, 2.43f } },
+    { NPC_DESTROYING_SHA,    { 4071.90f, 2925.00f, 780.00f, 3.25f } },
+    { NPC_SHA_MANIFESTATION, { 4015.65f, 2829.41f, 780.09f, 0.00f } },
 };
 
 #endif // SHADOPAN_MONASTERY_H_
