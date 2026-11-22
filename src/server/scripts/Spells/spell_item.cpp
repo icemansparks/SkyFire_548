@@ -2640,6 +2640,113 @@ class spell_item_drums_of_rage : public SpellScriptLoader
         }
 };
 
+// 51508 - Party G.R.E.N.A.D.E. (dance tick)
+class spell_item_party_grenade_eff : public SpellScriptLoader
+{
+    public:
+        spell_item_party_grenade_eff() : SpellScriptLoader("spell_item_party_grenade_eff") { }
+
+        class spell_item_party_grenade_eff_SpellScript : public SpellScript
+        {
+            PrepareSpellScript(spell_item_party_grenade_eff_SpellScript);
+
+            void HandleDance(SpellEffIndex /*effIndex*/)
+            {
+                if (Player* target = GetHitPlayer())
+                    target->HandleEmoteStateCommand(EMOTE_STATE_DANCE);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_item_party_grenade_eff_SpellScript::HandleDance, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
+
+        SpellScript* GetSpellScript() const OVERRIDE
+        {
+            return new spell_item_party_grenade_eff_SpellScript();
+        }
+};
+
+// 51510 - Party G.R.E.N.A.D.E. (the zone aura; the dance tick spell is its base points)
+class spell_item_party_grenade : public SpellScriptLoader
+{
+    public:
+        spell_item_party_grenade() : SpellScriptLoader("spell_item_party_grenade") { }
+
+        class spell_item_party_grenade_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_party_grenade_AuraScript);
+
+            // The first periodic tick comes after 3 s: start the dance on entering the aura
+            void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* owner = GetOwner()->ToPlayer())
+                    owner->CastSpell(owner, GetSpellInfo()->Effects[EFFECT_0].BasePoints, true);
+            }
+
+            void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* owner = GetOwner()->ToPlayer())
+                    owner->SetUInt32Value(UNIT_FIELD_NPC_EMOTESTATE, EMOTE_STATE_NONE);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectApply += AuraEffectApplyFn(spell_item_party_grenade_AuraScript::HandleApply, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+                OnEffectRemove += AuraEffectRemoveFn(spell_item_party_grenade_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_party_grenade_AuraScript();
+        }
+};
+
+// 128887 - Swarmkeeper's Medallion
+class spell_item_swarmkeepers_speed : public SpellScriptLoader
+{
+    public:
+        spell_item_swarmkeepers_speed() : SpellScriptLoader("spell_item_swarmkeepers_speed") { }
+
+        class spell_item_swarmkeepers_speed_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_item_swarmkeepers_speed_AuraScript);
+
+            enum
+            {
+                SPELL_SWARMKEEPERS_SPEED_EFF = 128882
+            };
+
+            // The speed spell is applied by area on entering the zone, so equipping the
+            // medallion inside the zone would otherwise do nothing until the next area change
+            void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* player = GetOwner()->ToPlayer())
+                    player->CastSpell(player, SPELL_SWARMKEEPERS_SPEED_EFF, true);
+            }
+
+            // Taking the medallion off ends the speed at once instead of at the next area change
+            void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Player* player = GetOwner()->ToPlayer())
+                    player->RemoveAurasDueToSpell(SPELL_SWARMKEEPERS_SPEED_EFF);
+            }
+
+            void Register() OVERRIDE
+            {
+                OnEffectApply += AuraEffectApplyFn(spell_item_swarmkeepers_speed_AuraScript::HandleApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+                OnEffectRemove += AuraEffectRemoveFn(spell_item_swarmkeepers_speed_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+            }
+        };
+
+        AuraScript* GetAuraScript() const OVERRIDE
+        {
+            return new spell_item_swarmkeepers_speed_AuraScript();
+        }
+};
+
 void AddSC_item_spell_scripts()
 {
     //
@@ -2709,4 +2816,7 @@ void AddSC_item_spell_scripts()
     new spell_item_greatmothers_soulcatcher();
     new spell_item_zen_alchemist_stone();
     new spell_item_drums_of_rage();
+    new spell_item_party_grenade_eff();
+    new spell_item_party_grenade();
+    new spell_item_swarmkeepers_speed();
 }
