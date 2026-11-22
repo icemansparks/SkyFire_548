@@ -634,6 +634,11 @@ void AddSC_instance_stormstout_brewery();
 void AddSC_stormstout_brewery();
 // Valley of the four Winds
 void AddSC_valley_of_the_four_winds();
+// World bosses
+void AddSC_boss_ordos();
+void AddSC_boss_oondasta();
+void AddSC_boss_sha_of_anger();
+void AddSC_boss_galleon();
 
 // Pets
 void AddSC_deathknight_pet_scripts();
@@ -1352,6 +1357,11 @@ void AddPandariaScripts()
     AddSC_stormstout_brewery();
     // Valley of the four Winds
     AddSC_valley_of_the_four_winds();
+    // World bosses
+    AddSC_boss_ordos();
+    AddSC_boss_oondasta();
+    AddSC_boss_sha_of_anger();
+    AddSC_boss_galleon();
 #endif
 }
 
