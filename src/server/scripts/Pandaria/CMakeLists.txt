@@ -14,6 +14,9 @@ set(scripts_STAT_SRCS
   Pandaria/TempleOfJadeSerpent/instance_temple_of_jade_serpent.cpp
   Pandaria/zone_valley_of_the_four_winds.cpp
   Pandaria/zone_wandering_island.cpp
+  Pandaria/WorldBosses/celestial_court.h
+  Pandaria/WorldBosses/npc_emperor_shaohao.cpp
+  Pandaria/WorldBosses/boss_xuen.cpp
 )
 
 message("  -> Prepared: Pandaria")

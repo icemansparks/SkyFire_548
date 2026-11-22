@@ -632,6 +632,9 @@ void AddSC_boss_hoptallus();
 void AddSC_boss_ook_ook();
 void AddSC_instance_stormstout_brewery();
 void AddSC_stormstout_brewery();
+// Celestial Court
+void AddSC_npc_emperor_shaohao();
+void AddSC_boss_xuen();
 // Valley of the four Winds
 void AddSC_valley_of_the_four_winds();
 
@@ -1350,6 +1353,9 @@ void AddPandariaScripts()
     AddSC_boss_ook_ook();
     AddSC_instance_stormstout_brewery();
     AddSC_stormstout_brewery();
+    // Celestial Court
+    AddSC_npc_emperor_shaohao();
+    AddSC_boss_xuen();
     // Valley of the four Winds
     AddSC_valley_of_the_four_winds();
 #endif
