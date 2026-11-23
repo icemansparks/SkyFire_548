@@ -19817,7 +19817,8 @@ void Player::SetMonthlyQuestStatus(uint32 quest_id)
 
 bool Player::IsDailyQuestDone(uint32 quest_id) const
 {
-    return m_dailyquests.find(quest_id) != m_dailyquests.end();
+    // Dungeon Finder dailies are kept in their own set, see SetDailyQuestStatus
+    return m_dailyquests.find(quest_id) != m_dailyquests.end() || m_DFQuests.find(quest_id) != m_DFQuests.end();
 }
 
 void Player::ResetDailyQuestStatus()
