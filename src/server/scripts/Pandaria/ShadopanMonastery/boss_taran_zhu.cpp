@@ -23,6 +23,8 @@
 #include "SpellAuraEffects.h"
 #include "Player.h"
 #include "GameObject.h"
+#include "Group.h"
+#include "LFGMgr.h"
 #include "shadopan_monastery.h"
 
 enum eTalks
@@ -193,7 +195,12 @@ class boss_taran_zhu : public CreatureScript
                             for (auto&& itr : instance->instance->GetPlayers())
                                 itr.GetSource()->ModifyCurrency(CURRENCY_TYPE_JUSTICE_POINTS, DUNGEON_MODE(70, 125) * CURRENCY_PRECISION);
 
-                            instance->DoFinishLFGDungeon(DUNGEON_MODE(466, 470));
+                            // Taran Zhu never dies, so no creature credit finishes the dungeon finder run.
+                            Map::PlayerList const& players = me->GetMap()->GetPlayers();
+                            if (!players.isEmpty())
+                                if (Group* group = players.begin()->GetSource()->GetGroup())
+                                    if (group->isLFGGroup())
+                                        sLFGMgr->FinishDungeon(group->GetGUID(), DUNGEON_MODE(466, 470));
                         }
                     }
                 }
