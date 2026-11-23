@@ -6,8 +6,9 @@
 /* ScriptData
 SDName: Zone_Timeless_Isle
 SD%Complete: 80
-SDComment: Timeless Isle rare chests only. Each chest hands out once per character (weekly for the six
-           chests whose tracking quest is weekly) through a tracking quest: a repeat attempt is refused (before the chest opens when clicked, by
+SDComment: Timeless Isle rare chests and zone spells. Each chest hands out once per character (weekly for
+           the six chests whose tracking quest is weekly) through a tracking quest: a repeat attempt is
+           refused (before the chest opens when clicked, by
            emptying it when opened through the loot opcode), the first one rewards the quest and
            counts for the Timeless Treasures credit. A second player joining an already open chest
            gets neither the lockout nor the credit.
@@ -20,6 +21,9 @@ EndScriptData */
 #include "Player.h"
 #include <mutex>
 #include <map>
+#include "Creature.h"
+#include "SpellScript.h"
+#include "SpellAuraEffects.h"
 
 enum TimelessChest
 {
@@ -196,8 +200,201 @@ class go_timeless_chest : public GameObjectScript
 
 std::map<uint64, uint64> go_timeless_chest::openedChests;
 std::mutex go_timeless_chest::openedChestsLock;
+enum TimelessSpells
+{
+    SPELL_BLOODY_COIN_IMMUNE    = 149624,
+    SPELL_POUNCE_STUN           = 147651,
+    SPELL_INSTAKILL_TOXIN       = 147656,
+    GULP_FROG_TOXIN_MAX_STACKS  = 9,
+    NPC_ZARHYM_SPIRIT           = 71869
+};
+
+// 148385, 148429 - Bloody Coin (Censer of Eternal Agony, Fire-Watcher's Oath): only procs on players
+// that do not carry the Bloody Coin immunity.
+class spell_bloody_coin_proc : public AuraScript
+{
+    PrepareAuraScript(spell_bloody_coin_proc);
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        Unit* target = eventInfo.GetProcTarget();
+        if (!target || target->GetTypeId() != TypeID::TYPEID_PLAYER)
+            return false;
+
+        Unit* actionTarget = eventInfo.GetActionTarget();
+        return !actionTarget || !actionTarget->HasAura(SPELL_BLOODY_COIN_IMMUNE);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_bloody_coin_proc::CheckProc);
+    }
+};
+
+// 148385 - Censer of Eternal Agony: the wearer is flagged for PvP and gains no reputation while it lasts.
+class spell_censer_of_eternal_agony : public AuraScript
+{
+    PrepareAuraScript(spell_censer_of_eternal_agony);
+
+    bool Load() override
+    {
+        return GetOwner()->GetTypeId() == TypeID::TYPEID_PLAYER;
+    }
+
+    void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        Player* player = GetOwner()->ToPlayer();
+        player->SetFlag(UNIT_FIELD_FLAGS2, UNIT_FLAG2_IGNORE_REPUTATION);
+        player->UpdatePvP(true, true);
+    }
+
+    void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        Player* player = GetOwner()->ToPlayer();
+        player->RemoveFlag(UNIT_FIELD_FLAGS2, UNIT_FLAG2_IGNORE_REPUTATION);
+        player->UpdatePvP(false);
+    }
+
+    void Register() override
+    {
+        OnEffectApply += AuraEffectApplyFn(spell_censer_of_eternal_agony::HandleApply, EFFECT_0, SPELL_AURA_MOD_FACTION, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(spell_censer_of_eternal_agony::HandleRemove, EFFECT_0, SPELL_AURA_MOD_FACTION, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// Casts the toxin's kill after the aura handler has returned, so the owner's auras are not removed mid-handler.
+class GulpFrogToxinKillEvent : public BasicEvent
+{
+public:
+    explicit GulpFrogToxinKillEvent(Unit* owner) : _owner(owner) { }
+
+    bool Execute(uint64 /*time*/, uint32 /*diff*/) override
+    {
+        if (_owner->IsAlive())
+            _owner->CastSpell(_owner, SPELL_INSTAKILL_TOXIN, true);
+        return true;
+    }
+
+private:
+    Unit* _owner;
+};
+
+// 147655 - Gulp Frog Toxin: the tenth stack kills the target.
+class spell_gulp_frog_toxin : public AuraScript
+{
+    PrepareAuraScript(spell_gulp_frog_toxin);
+
+    void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        if (GetStackAmount() > GULP_FROG_TOXIN_MAX_STACKS)
+            if (Unit* owner = GetUnitOwner())
+                owner->m_Events.AddEvent(new GulpFrogToxinKillEvent(owner), owner->m_Events.CalculateTime(0));
+    }
+
+    void Register() override
+    {
+        OnEffectApply += AuraEffectApplyFn(spell_gulp_frog_toxin::HandleApply, EFFECT_0, SPELL_AURA_PERIODIC_DAMAGE, AURA_EFFECT_HANDLE_REAPPLY);
+    }
+};
+
+// 144145 - Spirit World: the owner shifts to phase 2, back to phase 1 on removal, and Zarhym's spirits vanish.
+class spell_spirit_world : public AuraScript
+{
+    PrepareAuraScript(spell_spirit_world);
+
+    void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetOwner()->SetPhaseMask(2, true);
+    }
+
+    void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        WorldObject* owner = GetOwner();
+        owner->SetPhaseMask(1, true);
+
+        if (Player* player = owner->ToPlayer())
+        {
+            std::list<TempSummon*> summons = player->GetSummons();
+            for (TempSummon* summon : summons)
+                if (summon->GetEntry() == NPC_ZARHYM_SPIRIT)
+                    summon->DespawnOrUnsummon();
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectApply += AuraEffectApplyFn(spell_spirit_world::HandleApply, EFFECT_0, SPELL_AURA_SCREEN_EFFECT, AURA_EFFECT_HANDLE_REAL);
+        OnEffectRemove += AuraEffectRemoveFn(spell_spirit_world::HandleRemove, EFFECT_0, SPELL_AURA_SCREEN_EFFECT, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 147650 - Defensive Leap: the cat's knock back hands its AI action 0.
+class spell_cat_defensive_leap : public SpellScript
+{
+    PrepareSpellScript(spell_cat_defensive_leap);
+
+    void HandleHit(SpellEffIndex /*effIndex*/)
+    {
+        if (Creature* caster = GetCaster()->ToCreature())
+            if (caster->IsAIEnabled)
+                caster->AI()->DoAction(0);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_cat_defensive_leap::HandleHit, EFFECT_0, SPELL_EFFECT_KNOCK_BACK);
+    }
+};
+
+// 147649 - Pounce: the jump stuns the target it lands on.
+class spell_timelesscat_pounce : public SpellScript
+{
+    PrepareSpellScript(spell_timelesscat_pounce);
+
+    void HandleHit(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* caster = GetCaster())
+            if (Unit* target = GetHitUnit())
+                caster->CastSpell(target, SPELL_POUNCE_STUN, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_timelesscat_pounce::HandleHit, EFFECT_0, SPELL_EFFECT_JUMP);
+    }
+};
+
+// 147812 Time Rift, 147841 Time Lock: the destination lies in the water 10 to 30 yards behind the caster.
+class spell_evermaw_time_portals : public SpellScript
+{
+    PrepareSpellScript(spell_evermaw_time_portals);
+
+    void SelectDest(SpellDestination& dest)
+    {
+        Unit* caster = GetCaster();
+        float dist = frand(10.0f, 30.0f);
+        float angle = Position::NormalizeOrientation(caster->GetOrientation() - M_PI + frand(-M_PI / 2, M_PI / 2));
+        Position pos;
+        pos.Relocate(caster->GetPositionX() + dist * std::cos(angle), caster->GetPositionY() + dist * std::sin(angle),
+            caster->GetPositionZ() - 10.0f + frand(-4.5f, 4.5f), 0.0f);
+        dest.Relocate(pos);
+    }
+
+    void Register() override
+    {
+        OnDestinationTargetSelect += SpellDestinationTargetSelectFn(spell_evermaw_time_portals::SelectDest, EFFECT_0, TARGET_DEST_CASTER);
+    }
+};
 
 void AddSC_zone_timeless_isle()
 {
     new go_timeless_chest();
+
+    RegisterAuraScript(spell_bloody_coin_proc);
+    RegisterAuraScript(spell_censer_of_eternal_agony);
+    RegisterAuraScript(spell_gulp_frog_toxin);
+    RegisterAuraScript(spell_spirit_world);
+    RegisterSpellScript(spell_cat_defensive_leap);
+    RegisterSpellScript(spell_timelesscat_pounce);
+    RegisterSpellScript(spell_evermaw_time_portals);
 }
