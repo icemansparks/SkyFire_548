@@ -436,7 +436,13 @@ void WorldSession::HandleNpcTextQueryOpcode(WorldPacket& recvData)
         for (uint8 i = 0; i < 7; i++)
             buf << uint32(0); // ADB cache entry
 
-        buf << std::string(pGossip->Options[0].Text_0);
+        std::string text = pGossip->Options[0].Text_0;
+        int loc_idx = GetSessionDbLocaleIndex();
+        if (loc_idx >= 0)
+            if (NpcTextLocale const* nl = sObjectMgr->GetNpcTextLocale(textID))
+                ObjectMgr::GetLocaleString(nl->Text_0[0], loc_idx, text);
+
+        buf << text;
     }
 
     WorldPacket data(SMSG_NPC_TEXT_UPDATE, 1 + 4 + buf.size());
