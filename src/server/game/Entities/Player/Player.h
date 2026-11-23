@@ -1805,6 +1805,7 @@ public:
     void RemoveRewardedQuest(uint32 quest_id);
 
     void SetDailyQuestStatus(uint32 quest_id);
+    bool IsDailyQuestDone(uint32 quest_id) const;
     void SetWeeklyQuestStatus(uint32 quest_id);
     void SetMonthlyQuestStatus(uint32 quest_id);
     void SetSeasonalQuestStatus(uint32 quest_id);

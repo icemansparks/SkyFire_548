@@ -19815,6 +19815,11 @@ void Player::SetMonthlyQuestStatus(uint32 quest_id)
     m_MonthlyQuestChanged = true;
 }
 
+bool Player::IsDailyQuestDone(uint32 quest_id) const
+{
+    return m_dailyquests.find(quest_id) != m_dailyquests.end();
+}
+
 void Player::ResetDailyQuestStatus()
 {
     m_dailyquests.clear();

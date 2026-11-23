@@ -352,6 +352,12 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo)
             }
             break;
         }
+        case CONDITION_DAILY_QUEST_DONE:
+        {
+            if (Player* player = object->ToPlayer())
+                condMeets = player->IsDailyQuestDone(ConditionValue1);
+            break;
+        }
         case CONDITION_CHARMED:
         {
             if (Unit* unit = object->ToUnit())
@@ -580,6 +586,9 @@ uint32 Condition::GetSearcherTypeMaskForCondition()
             break;
         case CONDITION_STAND_STATE:
             mask |= GRID_MAP_TYPE_MASK_CREATURE | GRID_MAP_TYPE_MASK_PLAYER;
+            break;
+        case CONDITION_DAILY_QUEST_DONE:
+            mask |= GRID_MAP_TYPE_MASK_PLAYER;
             break;
         case CONDITION_CHARMED:
             mask |= GRID_MAP_TYPE_MASK_CREATURE | GRID_MAP_TYPE_MASK_PLAYER;
@@ -1732,12 +1741,6 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
         return false;
     }
 
-    if (cond->ConditionType == CONDITION_UNUSED_43)
-    {
-        SF_LOG_ERROR("sql.sql", "ConditionType 43 (DAILY_QUEST_DONE) is not implemented yet (daily quest cooldown storage incomplete). SourceEntry %u ignored.", cond->SourceEntry);
-        return false;
-    }
-
     if (cond->ConditionTarget >= cond->GetMaxAvailableConditionTargets())
     {
         SF_LOG_ERROR("sql.sql", "SourceType %u, SourceEntry %u, SourceGroup %u in `condition` table, has incorrect ConditionTarget set, ignoring.", cond->SourceType, cond->SourceEntry, cond->SourceGroup);
@@ -1863,6 +1866,7 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
         case CONDITION_QUESTTAKEN:
         case CONDITION_QUEST_NONE:
         case CONDITION_QUEST_COMPLETE:
+        case CONDITION_DAILY_QUEST_DONE:
         {
             if (!sObjectMgr->GetQuestTemplate(cond->ConditionValue1))
             {
