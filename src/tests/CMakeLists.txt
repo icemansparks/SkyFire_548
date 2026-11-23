@@ -893,3 +893,13 @@ target_include_directories(game_domain_tests PRIVATE ${SKYFIRE_GAME_TEST_INCLUDE
 target_include_directories(battle_pet_packet_tests PRIVATE ${SKYFIRE_GAME_TEST_INCLUDE_DIRS})
 
 add_test(NAME game_domain_tests COMMAND game_domain_tests)
+
+add_executable(npc_text_locale_columns_tests
+  NpcTextLocaleColumnsTests.cpp
+)
+
+target_include_directories(npc_text_locale_columns_tests PRIVATE
+  ${CMAKE_SOURCE_DIR}/src/server/game/Globals
+)
+
+add_test(NAME npc_text_locale_columns_tests COMMAND npc_text_locale_columns_tests)

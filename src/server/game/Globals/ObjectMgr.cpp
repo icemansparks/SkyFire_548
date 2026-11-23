@@ -28,6 +28,7 @@
 #include "Log.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
+#include "NpcTextLocaleColumns.h"
 #include "Platform/TimeUtils.h"
 #include "Pet.h"
 #include "PlayerRestState.h"
@@ -5224,19 +5225,8 @@ void ObjectMgr::LoadNpcTextLocales()
 
     _npcTextLocaleStore.clear();                              // need for reload case
 
-    QueryResult result = WorldDatabase.Query("SELECT ID, "
-        "Text0_0_loc1, Text0_1_loc1, Text1_0_loc1, Text1_1_loc1, Text2_0_loc1, Text2_1_loc1, Text3_0_loc1, Text3_1_loc1, Text4_0_loc1, Text4_1_loc1, Text5_0_loc1, Text5_1_loc1, Text6_0_loc1, Text6_1_loc1, Text7_0_loc1, Text7_1_loc1, Text8_0_loc1, Text8_1_loc1, Text9_0_loc1, Text9_1_loc1, Text10_0_loc1, Text10_1_loc1, Text11_0_loc1, Text11_1_loc1,"
-        "Text0_0_loc2, Text0_1_loc2, Text1_0_loc2, Text1_1_loc2, Text2_0_loc2, Text2_1_loc2, Text3_0_loc2, Text3_1_loc1, Text4_0_loc2, Text4_1_loc2, Text5_0_loc2, Text5_1_loc2, Text6_0_loc2, Text6_1_loc2, Text7_0_loc2, Text7_1_loc2, Text8_0_loc2, Text8_1_loc2, Text9_0_loc2, Text9_1_loc2, Text10_0_loc2, Text10_1_loc2, Text11_0_loc2, Text11_1_loc2,"
-        "Text0_0_loc3, Text0_1_loc3, Text1_0_loc3, Text1_1_loc3, Text2_0_loc3, Text2_1_loc3, Text3_0_loc3, Text3_1_loc1, Text4_0_loc3, Text4_1_loc3, Text5_0_loc3, Text5_1_loc3, Text6_0_loc3, Text6_1_loc3, Text7_0_loc3, Text7_1_loc3, Text8_0_loc3, Text8_1_loc3, Text9_0_loc3, Text9_1_loc3, Text10_0_loc3, Text10_1_loc3, Text11_0_loc3, Text11_1_loc3,"
-        "Text0_0_loc4, Text0_1_loc4, Text1_0_loc4, Text1_1_loc4, Text2_0_loc4, Text2_1_loc4, Text3_0_loc4, Text3_1_loc1, Text4_0_loc4, Text4_1_loc4, Text5_0_loc4, Text5_1_loc4, Text6_0_loc4, Text6_1_loc4, Text7_0_loc4, Text7_1_loc4, Text8_0_loc4, Text8_1_loc4, Text9_0_loc4, Text9_1_loc4, Text10_0_loc4, Text10_1_loc4, Text11_0_loc4, Text11_1_loc4,"
-        "Text0_0_loc5, Text0_1_loc5, Text1_0_loc5, Text1_1_loc5, Text2_0_loc5, Text2_1_loc5, Text3_0_loc5, Text3_1_loc1, Text4_0_loc5, Text4_1_loc5, Text5_0_loc5, Text5_1_loc5, Text6_0_loc5, Text6_1_loc5, Text7_0_loc5, Text7_1_loc5, Text8_0_loc5, Text8_1_loc5, Text9_0_loc5, Text9_1_loc5, Text10_0_loc5, Text10_1_loc5, Text11_0_loc5, Text11_1_loc5,"
-        "Text0_0_loc6, Text0_1_loc6, Text1_0_loc6, Text1_1_loc6, Text2_0_loc6, Text2_1_loc6, Text3_0_loc6, Text3_1_loc1, Text4_0_loc6, Text4_1_loc6, Text5_0_loc6, Text5_1_loc6, Text6_0_loc6, Text6_1_loc6, Text7_0_loc6, Text7_1_loc6, Text8_0_loc6, Text8_1_loc6, Text9_0_loc6, Text9_1_loc6, Text10_0_loc6, Text10_1_loc6, Text11_0_loc6, Text11_1_loc6,"
-        "Text0_0_loc7, Text0_1_loc7, Text1_0_loc7, Text1_1_loc7, Text2_0_loc7, Text2_1_loc7, Text3_0_loc7, Text3_1_loc1, Text4_0_loc7, Text4_1_loc7, Text5_0_loc7, Text5_1_loc7, Text6_0_loc7, Text6_1_loc7, Text7_0_loc7, Text7_1_loc7, Text8_0_loc7, Text8_1_loc7, Text9_0_loc7, Text9_1_loc7, Text10_0_loc7, Text10_1_loc7, Text11_0_loc7, Text11_1_loc7,"
-        "Text0_0_loc8, Text0_1_loc8, Text1_0_loc8, Text1_1_loc8, Text2_0_loc8, Text2_1_loc8, Text3_0_loc8, Text3_1_loc1, Text4_0_loc8, Text4_1_loc8, Text5_0_loc8, Text5_1_loc8, Text6_0_loc8, Text6_1_loc8, Text7_0_loc8, Text7_1_loc8, Text8_0_loc8, Text8_1_loc8, Text9_0_loc8, Text9_1_loc8, Text10_0_loc8, Text10_1_loc8, Text11_0_loc8, Text11_1_loc8,"
-        "Text0_0_loc9, Text0_1_loc9, Text1_0_loc9, Text1_1_loc9, Text2_0_loc9, Text2_1_loc9, Text3_0_loc9, Text3_1_loc1, Text4_0_loc9, Text4_1_loc9, Text5_0_loc9, Text5_1_loc9, Text6_0_loc9, Text6_1_loc9, Text7_0_loc9, Text7_1_loc9, Text8_0_loc9, Text8_1_loc9, Text9_0_loc9, Text9_1_loc9, Text10_0_loc9, Text10_1_loc9, Text11_0_loc9, Text11_1_loc9,"
-        "Text0_0_loc10, Text0_1_loc10, Text1_0_loc10, Text1_1_loc10, Text2_0_loc10, Text2_1_loc10, Text3_0_loc10, Text3_1_loc1, Text4_0_loc10, Text4_1_loc10, Text5_0_loc10, Text5_1_loc10, Text6_0_loc10, Text6_1_loc10, Text7_0_loc10, Text7_1_loc10, Text8_0_loc10, Text8_1_loc10, Text9_0_loc10, Text9_1_loc10, Text10_0_loc10, Text10_1_loc10, Text11_0_loc10, Text11_1_loc10,"
-        "Text0_0_loc11, Text0_1_loc11, Text1_0_loc11, Text1_1_loc11, Text2_0_loc11, Text2_1_loc11, Text3_0_loc11, Text3_1_loc1, Text4_0_loc11, Text4_1_loc11, Text5_0_loc11, Text5_1_loc11, Text6_0_loc11, Text6_1_loc11, Text7_0_loc11, Text7_1_loc11  Text8_0_loc11, Text8_1_loc11, Text9_0_loc11, Text9_1_loc11, Text10_0_loc11, Text10_1_loc11, Text11_0_loc11, Text11_1_loc11"
-        " FROM locales_npc_text");
+    std::string const query = "SELECT ID, " + Skyfire::NpcTextColumns::SelectList() + " FROM locales_npc_text";
+    QueryResult result = WorldDatabase.Query(query.c_str());
 
     if (!result)
         return;
@@ -5254,8 +5244,8 @@ void ObjectMgr::LoadNpcTextLocales()
             LocaleConstant locale = (LocaleConstant)i;
             for (uint8 j = 0; j < MAX_LOCALES; ++j)
             {
-                AddLocaleString(fields[1 + 8 * 2 * (i - 1) + 2 * j].GetString(), locale, data.Text_0[j]);
-                AddLocaleString(fields[1 + 8 * 2 * (i - 1) + 2 * j + 1].GetString(), locale, data.Text_1[j]);
+                AddLocaleString(fields[Skyfire::NpcTextColumns::FieldIndex(i, j, 0)].GetString(), locale, data.Text_0[j]);
+                AddLocaleString(fields[Skyfire::NpcTextColumns::FieldIndex(i, j, 1)].GetString(), locale, data.Text_1[j]);
             }
         }
     } while (result->NextRow());
