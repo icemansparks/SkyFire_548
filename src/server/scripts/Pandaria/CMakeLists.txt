@@ -12,6 +12,7 @@ set(scripts_STAT_SRCS
   Pandaria/StormstoutBrewery/stormstout_brewery.h
   Pandaria/TempleOfJadeSerpent/temple_of_jade_serpent.h
   Pandaria/TempleOfJadeSerpent/instance_temple_of_jade_serpent.cpp
+  Pandaria/TimelessIsle/zone_timeless_isle.cpp
   Pandaria/zone_valley_of_the_four_winds.cpp
   Pandaria/zone_wandering_island.cpp
 )
