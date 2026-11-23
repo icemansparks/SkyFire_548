@@ -22,6 +22,7 @@ EndScriptData */
 #include <mutex>
 #include <map>
 #include "Creature.h"
+#include "ScriptedCreature.h"
 #include "Guild.h"
 #include "SpellScript.h"
 #include "SpellAuraEffects.h"
@@ -706,9 +707,309 @@ class spell_book_of_the_ages : public AuraScript
     }
 };
 
+enum TimelessRares
+{
+    // Jademist Dancer
+    SPELL_STEAM_BLAST           = 147863,
+
+    // Nice Sprite
+    SPELL_NATURE_S_WRATH        = 114997,
+    SPELL_STICKY_SAP            = 144424,
+    SPELL_ASCENDANCE            = 114052,
+    NPC_ANGRY_SPRITE            = 71824,
+    NPC_SCARY_SPRITE            = 71826,
+
+    // Ordon Candlekeeper
+    SPELL_BREATH_OF_FIRE        = 147416,
+    SPELL_BURNING_SACRIFICE     = 147422,
+
+    // Southsea Lookout
+    SPELL_SPY_GLASS             = 141528,
+
+    // Cove Shark
+    SPELL_SAVAGE_BITE           = 126062,
+    SPELL_SCENT_OF_BLOOD        = 126063,
+
+    // Spectral Pirate
+    SPELL_BLACK_FOG             = 128049,
+    SPELL_SINISTER_STRIKE       = 129040,
+
+    EVENT_STEAM_BLAST           = 1,
+    EVENT_NATURES_WRATH,
+    EVENT_STICKY_SAP,
+    EVENT_BREATH_OF_FIRE,
+    EVENT_SAVAGE_BITE,
+    EVENT_SCENT_OF_BLOOD,
+    EVENT_BLACK_FOG,
+    EVENT_SINISTER_STRIKE
+};
+
+// Jademist Dancer - 72767
+struct npc_jademist_dancer : public ScriptedAI
+{
+    npc_jademist_dancer(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override { events.Reset(); }
+
+    void EnterCombat(Unit* /*who*/) override
+    {
+        events.ScheduleEvent(EVENT_STEAM_BLAST, 6 * IN_MILLISECONDS);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        if (events.ExecuteEvent() == EVENT_STEAM_BLAST)
+        {
+            DoCastVictim(SPELL_STEAM_BLAST);
+            events.ScheduleEvent(EVENT_STEAM_BLAST, 10 * IN_MILLISECONDS);
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap events;
+};
+
+// Nice Sprite - 71823
+struct npc_nice_sprite : public ScriptedAI
+{
+    npc_nice_sprite(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override { events.Reset(); }
+
+    // Ascendance turns it into the hostile Angry Sprite. UpdateEntry keeps this AI instance, so the
+    // Angry Sprite fights with the same Nature's Wrath and Sticky Sap kit; its template has no script of its own.
+    void SpellHit(Unit* caster, SpellInfo const* spell) override
+    {
+        if (spell->Id == SPELL_ASCENDANCE)
+        {
+            me->UpdateEntry(NPC_ANGRY_SPRITE);
+            me->Attack(caster, true);
+        }
+    }
+
+    void EnterCombat(Unit* /*who*/) override
+    {
+        events.ScheduleEvent(EVENT_NATURES_WRATH, 1 * IN_MILLISECONDS);
+        events.ScheduleEvent(EVENT_STICKY_SAP, 3 * IN_MILLISECONDS);
+    }
+
+    void JustDied(Unit* killer) override
+    {
+        if (killer && roll_chance_i(20))
+            if (Creature* scary = me->SummonCreature(NPC_SCARY_SPRITE, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation(), TempSummonType::TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 120 * IN_MILLISECONDS))
+                scary->AI()->AttackStart(killer);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        switch (events.ExecuteEvent())
+        {
+            case EVENT_NATURES_WRATH:
+                DoCastVictim(SPELL_NATURE_S_WRATH);
+                events.ScheduleEvent(EVENT_NATURES_WRATH, 1 * IN_MILLISECONDS);
+                break;
+            case EVENT_STICKY_SAP:
+                DoCastVictim(SPELL_STICKY_SAP);
+                events.ScheduleEvent(EVENT_STICKY_SAP, 2 * IN_MILLISECONDS);
+                break;
+            default:
+                break;
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap events;
+};
+
+// Ordon Candlekeeper - 72875
+struct npc_ordon_candlekeeper : public ScriptedAI
+{
+    npc_ordon_candlekeeper(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        events.Reset();
+        sacrificed = false;
+    }
+
+    void EnterCombat(Unit* /*who*/) override
+    {
+        events.ScheduleEvent(EVENT_BREATH_OF_FIRE, 1 * IN_MILLISECONDS);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        if (!sacrificed && HealthBelowPct(25))
+        {
+            sacrificed = true;
+            DoCast(me, SPELL_BURNING_SACRIFICE);
+            return;
+        }
+
+        if (events.ExecuteEvent() == EVENT_BREATH_OF_FIRE)
+        {
+            DoCastVictim(SPELL_BREATH_OF_FIRE);
+            events.ScheduleEvent(EVENT_BREATH_OF_FIRE, 2 * IN_MILLISECONDS);
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap events;
+    bool sacrificed = false;
+};
+
+// Southsea Lookout - 73718
+struct npc_southsea_lookout : public ScriptedAI
+{
+    npc_southsea_lookout(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        DoCast(me, SPELL_SPY_GLASS);
+    }
+
+    void EnterCombat(Unit* /*who*/) override
+    {
+        me->RemoveAurasDueToSpell(SPELL_SPY_GLASS);
+    }
+
+    void UpdateAI(uint32 /*diff*/) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        DoMeleeAttackIfReady();
+    }
+};
+
+// Cove Shark - 71986
+struct npc_cove_shark : public ScriptedAI
+{
+    npc_cove_shark(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override { events.Reset(); }
+
+    void EnterCombat(Unit* /*who*/) override
+    {
+        events.ScheduleEvent(EVENT_SAVAGE_BITE, 1 * IN_MILLISECONDS);
+        events.ScheduleEvent(EVENT_SCENT_OF_BLOOD, 5 * IN_MILLISECONDS);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        switch (events.ExecuteEvent())
+        {
+            case EVENT_SAVAGE_BITE:
+                DoCastVictim(SPELL_SAVAGE_BITE);
+                events.ScheduleEvent(EVENT_SAVAGE_BITE, 5 * IN_MILLISECONDS);
+                break;
+            case EVENT_SCENT_OF_BLOOD:
+                DoCast(me, SPELL_SCENT_OF_BLOOD);
+                events.ScheduleEvent(EVENT_SCENT_OF_BLOOD, 15 * IN_MILLISECONDS);
+                break;
+            default:
+                break;
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap events;
+};
+
+// Spectral Pirate - 71987
+struct npc_spectral_pirate : public ScriptedAI
+{
+    npc_spectral_pirate(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override { events.Reset(); }
+
+    void EnterCombat(Unit* /*who*/) override
+    {
+        events.ScheduleEvent(EVENT_BLACK_FOG, 8 * IN_MILLISECONDS);
+        events.ScheduleEvent(EVENT_SINISTER_STRIKE, 2 * IN_MILLISECONDS);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (!UpdateVictim())
+            return;
+
+        events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        switch (events.ExecuteEvent())
+        {
+            case EVENT_BLACK_FOG:
+                DoCastVictim(SPELL_BLACK_FOG);
+                events.ScheduleEvent(EVENT_BLACK_FOG, 10 * IN_MILLISECONDS);
+                break;
+            case EVENT_SINISTER_STRIKE:
+                DoCastVictim(SPELL_SINISTER_STRIKE);
+                events.ScheduleEvent(EVENT_SINISTER_STRIKE, 5 * IN_MILLISECONDS);
+                break;
+            default:
+                break;
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap events;
+};
+
 void AddSC_zone_timeless_isle()
 {
     new go_timeless_chest();
+
+    RegisterCreatureAI(npc_jademist_dancer);
+    RegisterCreatureAI(npc_nice_sprite);
+    RegisterCreatureAI(npc_ordon_candlekeeper);
+    RegisterCreatureAI(npc_southsea_lookout);
+    RegisterCreatureAI(npc_cove_shark);
+    RegisterCreatureAI(npc_spectral_pirate);
 
     RegisterAuraScript(spell_bloody_coin_proc);
     RegisterAuraScript(spell_censer_of_eternal_agony);
