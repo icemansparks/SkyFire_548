@@ -84,7 +84,10 @@ void LoadSkillDiscoveryTable()
             // mechanic discovery
             if (reqSpellInfo->Mechanic != MECHANIC_DISCOVERY &&
                 // explicit discovery ability
-                !reqSpellInfo->IsExplicitDiscovery())
+                !reqSpellInfo->IsExplicitDiscovery() &&
+                // MoP research spells (gem research, Scroll of Wisdom) learn the recipe in a script effect
+                // and carry neither the discovery mechanic nor the 3.3.5 explicit discovery layout
+                !reqSpellInfo->HasEffect(SPELL_EFFECT_SCRIPT_EFFECT))
             {
                 if (reportedReqSpells.find(absReqSkillOrSpell) == reportedReqSpells.end())
                 {
