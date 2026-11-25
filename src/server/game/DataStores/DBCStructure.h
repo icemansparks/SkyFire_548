@@ -2091,7 +2091,7 @@ struct PhaseEntry
 {
     uint32 ID;                                            // 0
     //char* Name;                                         // 1
-    //uint32 flag;                                        // 2
+    uint32 Flags;                                         // 2 PhaseEntryFlags
 };
 
 struct PhaseGroupEntry

@@ -646,6 +646,7 @@ public:
     void ClearPhases(bool update = false);
     bool IsPhased(WorldObject const* obj) const;
     bool IsPhased(uint32 phase) const { return _phases.find(phase) != _phases.end(); }
+    bool IsInDefaultPhase() const;
     std::set<uint32> const& GetPhases() const { return _phases; }
     bool IsTerrainSwaped(uint32 terrainSwap) const { return _terrainSwaps.find(terrainSwap) != _terrainSwaps.end(); }
     std::set<uint32> const& GetTerrainSwaps() const { return _terrainSwaps; }

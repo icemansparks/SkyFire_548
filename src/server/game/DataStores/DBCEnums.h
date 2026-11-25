@@ -467,6 +467,15 @@ enum SummonPropGroup
     SUMMON_PROP_GROUP_UNKNOWN3 = 4                    // 86 spells in 3.0.3, taxi/mounts
 };
 
+// Phase.dbc flags (5.4.8)
+enum PhaseEntryFlags
+{
+    PHASE_FLAG_NORMAL   = 0x08,                             // only phase 169, the default phase
+    PHASE_FLAG_COSMETIC = 0x10                              // adds objects, does not hide the default phase
+};
+
+uint32 const DEFAULT_PHASE_ID = 169;                       // Phase.dbc "Normal"
+
 // SummonProperties.dbc, col 3
 enum SummonPropType
 {

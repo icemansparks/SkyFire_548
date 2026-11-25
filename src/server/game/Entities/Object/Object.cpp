@@ -3598,6 +3598,28 @@ void WorldObject::ClearPhases(bool update)
         UpdateObjectVisibility();
 }
 
+// Phase 169 is the default phase; an object without phases is in it.
+// A player whose phases are all cosmetic (Phase.dbc flag, e.g. the Wandering Isle
+// weapon racks 592-598) stays in it as well: a cosmetic phase adds objects and must not
+// hide the rest of the world. Any other phase replaces the default phase.
+bool WorldObject::IsInDefaultPhase() const
+{
+    if (_phases.empty() || IsPhased(DEFAULT_PHASE_ID))
+        return true;
+
+    if (GetTypeId() != TypeID::TYPEID_PLAYER)
+        return false;
+
+    for (uint32 phaseId : _phases)
+    {
+        PhaseEntry const* phase = sPhaseStore.LookupEntry(phaseId);
+        if (!phase || !(phase->Flags & PHASE_FLAG_COSMETIC))
+            return false;
+    }
+
+    return true;
+}
+
 bool WorldObject::IsPhased(WorldObject const* obj) const
 {
     // Socketless sessions do not share real players' quest/aura phase conditions.
@@ -3613,14 +3635,7 @@ bool WorldObject::IsPhased(WorldObject const* obj) const
             return true;
     }
 
-    // PhaseId 169 is the default fallback phase
-    if (_phases.empty() && obj->GetPhases().empty())
-        return true;
-
-    if (_phases.empty() && obj->IsPhased(169))
-        return true;
-
-    if (obj->GetPhases().empty() && IsPhased(169))
+    if (IsInDefaultPhase() && obj->IsInDefaultPhase())
         return true;
 
     if (GetTypeId() == TypeID::TYPEID_PLAYER && ToPlayer()->IsGameMaster())
