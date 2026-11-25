@@ -4,7 +4,7 @@
 -- alexkulya binds npc_slitherscale_lizard_lord. That script, in combat: every
 -- 4.5-12 s a random one of Mortal Strike (32736), Slam (130198) or Rend (13738)
 -- on the victim (never the same twice in a row); every 10-15 s Spring (130475)
--- on itself or Sunder Armor (64978) on the victim, 50/50; once at 50% health
+-- on itself or Sunder Armor (64978) on the victim, 50/50; once below 51% health
 -- Avatar (130471) on itself.
 -- Here: the same with SmartAI. The no-repeat rule is not reproduced (a random
 -- timed action list picks uniformly), so the same attack can fire twice in a
