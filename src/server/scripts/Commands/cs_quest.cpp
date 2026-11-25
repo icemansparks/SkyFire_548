@@ -135,6 +135,7 @@ public:
 
         player->RemoveActiveQuest(entry);
         player->RemoveRewardedQuest(entry);
+        player->UpdateAreaPhase(); // removed quest may drop a quest-gated area phase
 
         handler->SendSysMessage(LANG_COMMAND_QUEST_REMOVED);
         return true;

@@ -145,6 +145,7 @@ void Spell::EffectQuestClear(SpellEffIndex effIndex)
 
     player->RemoveActiveQuest(quest_id);
     player->RemoveRewardedQuest(quest_id);
+    player->UpdateAreaPhase(); // cleared quest may drop a quest-gated area phase
 }
 
 void Spell::EffectKillCreditPersonal(SpellEffIndex effIndex)
