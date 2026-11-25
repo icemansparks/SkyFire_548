@@ -1218,7 +1218,8 @@ namespace
             "CREATURE\\IMP\\IMP.M2",
             "CREATURE\\RABBIT\\RABBIT.M2",
             "CREATURE\\ROCKETCHICKEN\\ROCKETCHICKEN.M2",
-            "CREATURE\\PUG\\PUG.M2"
+            "CREATURE\\PUG\\PUG.M2",
+            "SPELLS\\AXISTESTOBJECT.M2"
         };
 
         for (char const* placeholder : placeholders)
