@@ -47,6 +47,11 @@
 #include "World.h"
 #include "DBCStores.h"
 
+#include <algorithm>
+#include <cctype>
+#include <string>
+#include <vector>
+
 ScriptMapMap sSpellScripts;
 ScriptMapMap sEventScripts;
 ScriptMapMap sWaypointScripts;
@@ -1181,13 +1186,87 @@ CreatureModelInfo const* ObjectMgr::GetCreatureModelInfo(uint32 modelId)
     return NULL;
 }
 
+namespace
+{
+    enum class CreatureModelKind
+    {
+        Real,
+        Invisible,
+        Placeholder
+    };
+
+    // Hidden helper NPCs (bunnies, triggers) pair an invisible model with a GM placeholder model
+    CreatureModelKind GetCreatureModelKind(uint32 displayId)
+    {
+        CreatureDisplayInfoEntry const* display = sCreatureDisplayInfoStore.LookupEntry(displayId);
+        if (!display)
+            return CreatureModelKind::Real;
+
+        CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(display->ModelId);
+        if (!modelData || !modelData->ModelPath)
+            return CreatureModelKind::Real;
+
+        std::string path = modelData->ModelPath;
+        std::transform(path.begin(), path.end(), path.begin(), [](unsigned char c) { return char(std::toupper(c)); });
+
+        if (path.find("INVISIBLESTALKER") != std::string::npos)
+            return CreatureModelKind::Invisible;
+
+        static char const* const placeholders[] =
+        {
+            "CREATURE\\INFERNAL\\INFERNAL.M2",
+            "CREATURE\\IMP\\IMP.M2",
+            "CREATURE\\RABBIT\\RABBIT.M2",
+            "CREATURE\\ROCKETCHICKEN\\ROCKETCHICKEN.M2",
+            "CREATURE\\PUG\\PUG.M2"
+        };
+
+        for (char const* placeholder : placeholders)
+            if (path == placeholder)
+                return CreatureModelKind::Placeholder;
+
+        return CreatureModelKind::Real;
+    }
+}
+
 uint32 ObjectMgr::ChooseDisplayId(CreatureTemplate const* cinfo, CreatureData const* data /*= NULL*/)
 {
     // Load creature model (display id)
     if (data && data->displayid)
         return data->displayid;
 
-    return cinfo->GetRandomValidModelId();
+    // A template with an invisible model uses its real models, or the invisible one
+    // if the rest are GM placeholders, so a random pick never shows players either
+    uint32 const modelIds[] = { cinfo->Modelid1, cinfo->Modelid2, cinfo->Modelid3, cinfo->Modelid4 };
+    std::vector<uint32> realModelIds;
+    uint32 invisibleModelId = 0;
+
+    for (uint32 modelId : modelIds)
+    {
+        if (!modelId)
+            continue;
+
+        switch (GetCreatureModelKind(modelId))
+        {
+            case CreatureModelKind::Invisible:
+                if (!invisibleModelId)
+                    invisibleModelId = modelId;
+                break;
+            case CreatureModelKind::Real:
+                realModelIds.push_back(modelId);
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (!invisibleModelId)
+        return cinfo->GetRandomValidModelId();
+
+    if (!realModelIds.empty())
+        return realModelIds[uint32(rand32()) % realModelIds.size()];
+
+    return invisibleModelId;
 }
 
 void ObjectMgr::ChooseCreatureFlags(const CreatureTemplate* cinfo, uint32& npcflag, uint32& unit_flags, uint32& dynamicflags, const CreatureData* data /*= NULL*/)

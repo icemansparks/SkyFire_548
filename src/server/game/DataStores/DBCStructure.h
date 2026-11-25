@@ -968,7 +968,7 @@ struct CreatureModelDataEntry
 {
     //uint32 Id;
     //uint32 Flags;
-    //char* ModelPath
+    char* ModelPath;                                         // 2, the first stored field ('d' and 'x' fields are not stored)
     //uint32 Unk1;
     //float Scale;                                             // Used in calculation of unit collision data
     //int32 Unk2
@@ -981,8 +981,8 @@ struct CreatureModelDataEntry
     //uint32 Unk9
     //uint32 Unk10
     //float CollisionWidth;
-    float CollisionHeight;
-    float MountHeight;                                       // Used in calculation of unit collision data when mounted
+    float CollisionHeight;                                   // 15
+    float MountHeight;                                       // 16, used in calculation of unit collision data when mounted
     //float Unks[11]
     //uint32 unk11
     //uint32 unk12
