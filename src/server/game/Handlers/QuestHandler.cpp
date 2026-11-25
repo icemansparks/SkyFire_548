@@ -614,6 +614,7 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPacket& recvData)
                 CancelEyeOfAcherusQuest(_player);
 
             _player->RemoveActiveQuest(questId);
+            _player->UpdateAreaPhase(); // abandoned quest may drop a quest-gated area phase
             if (questId == QUEST_DEATH_COMES_FROM_ON_HIGH)
             {
                 _player->UpdateForQuestWorldObjects();

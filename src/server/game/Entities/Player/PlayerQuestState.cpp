@@ -569,6 +569,7 @@ void Player::AddQuest(Quest const* quest, Object* questGiver)
     StartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_QUEST, questId);
 
     UpdateForQuestWorldObjects();
+    UpdateAreaPhase(); // quest-gated phase_area rows apply without an area change
     UpdatePhasing();
 
     UpdateObjectVisibility();
@@ -860,6 +861,9 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
         pvpInfo.IsHostile = pvpInfo.IsInHostileArea || HasPvPForcingQuest();
         UpdatePvPState();
     }
+
+    // the quest is now rewarded: re-check quest-gated phase_area rows
+    UpdateAreaPhase();
 
     sScriptMgr->OnPlayerQuestReward(this, quest, questGiver);
 
@@ -1494,6 +1498,7 @@ void Player::SetQuestStatus(uint32 quest_id, QuestStatus status)
     }
 
     UpdateForQuestWorldObjects();
+    UpdateAreaPhase(); // quest-gated phase_area rows apply without an area change
     UpdatePhasing();
 }
 
